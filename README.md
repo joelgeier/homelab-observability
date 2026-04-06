@@ -1,12 +1,15 @@
-# homelab-ontroller: Central Management & Observability Hub
+# homelab-controller: Central Management & Observability Hub
+
+https://github.com/joelgeier/homelab-controller/ 
 
 ## Overview
 
 The **Controller** (QNAP Xeon D-1250 | 128GB RAM) serves as the persistent "Brain" of the homelab. While `labhost01` and `labhost02` are volatile and frequently rebuilt, the Controller remains stable to provide management, monitoring, and data persistence.
 
-QNAP Container Station is used to deploy the services as docker "applications" the QNAP term for what Portainer calls "stacks"
+**QNAP Container Station** is used to deploy the services as docker "applications" the QNAP term for what Portainer calls "stacks"
 
-This is a new project commenced in April 2026 to consolidate experiments with individual tools and create a stable observability stack, upon which I can then ponder attempting various use cases.  These use cases are captured in the "projects" folder under each tools folder, in my GitHub project https://github.com/joelgeier/homelab-controller/ 
+This is a new project commenced in April 2026 to consolidate experiments with individual tools and create a stable observability stack, upon which I can then ponder attempting various use cases.  These use cases are captured in the "projects" folder under each tools folder, in my GitHub project 
+
 
 ## Core Services
 
