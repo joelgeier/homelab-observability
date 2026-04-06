@@ -1,5 +1,7 @@
 This document combines our initial inquiry into the "why" of Nagios with the specific "how" for your unique homelab topology. It is designed to be the foundational README.md or Strategy.md for your GitHub repository.
+
 ------------------------------
+
 ## Strategy: Infrastructure Monitoring with Nagios Core## Diversifying the Homelab Monitoring Stack## 1. The "Why": Nagios vs. Prometheus vs. ELK
 In a professional DevOps or SysAdmin role, you rarely use just one tool. This project demonstrates an understanding of the three pillars of observability:
 
@@ -10,7 +12,9 @@ In a professional DevOps or SysAdmin role, you rarely use just one tool. This pr
 | Nagios | Availability | State-Based (Up/Down) | Hardware health, RAID, Network Fabric. |
 
 The Nagios Advantage: Unlike Prometheus (which averages data) or ELK (which reacts to logs), Nagios is a "State Engine." It cares if a fan is spinning, if a disk is "Healthy," or if a network port is "Connected." It provides the Source of Truth for the Physical Layer.
+
 ------------------------------
+
 ## 2. Physical Topology & Hub Strategy
 The QNAP TVS-h1288x acts as the "Source of Truth" and the Monitoring Hub. It sits on the Meraki MS220-8P fabric alongside the lab hosts.
 
@@ -35,8 +39,11 @@ The QNAP TVS-h1288x acts as the "Source of Truth" and the Monitoring Hub. It sit
                   |-- Port 2: ESXi (Hypervisor)
 
 ------------------------------
+
 ## 3. Plan of Attack: Demo Use Cases
+
 To avoid overlap with existing Prometheus/ELK setups, Nagios will focus on these three specific infrastructure-centric demos:
+
 ## Use Case A: Enterprise Hardware "Junk" Health (HP iLO 4)
 
 * The Goal: Monitor the physical health of the HP Microserver without an iLO license.
@@ -56,6 +63,7 @@ To avoid overlap with existing Prometheus/ELK setups, Nagios will focus on these
 * Interview Value: Proves an understanding of data integrity at the hardware level, distinct from "database" monitoring.
 
 ------------------------------
+
 ## 4. Implementation Checklist (Next Steps)
 
    1. [ ] Environment Setup:
@@ -71,5 +79,6 @@ To avoid overlap with existing Prometheus/ELK setups, Nagios will focus on these
    * Verify "Hard State" vs "Soft State" logic in Nagios to reduce flapping alerts from the shared house router.
    
 ------------------------------
+
 Next Step: When you start the build, would you like the Specific SNMP OIDs for the QNAP RAID status or the Docker-Compose logic for the QNAP Container Station?
 
