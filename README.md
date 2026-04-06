@@ -7,6 +7,7 @@ The **Controller** (QNAP Xeon D-1250 | 128GB RAM) serves as the persistent "Brai
 - **Portainer**: Container orchestration for the entire lab.
 - **Uptime Kuma**: External health pings for lab services.
 - **ELK Stack (Target Project)**: Centralized logging and telemetry.
+- **Nagios**: physical hardware monitoring 
 
 ---
 
