@@ -19,7 +19,7 @@ The "caveat" in this thinking, every tool needs to offer a free community editio
 
 ## The Monitoring Stack
 
-| ## | Tool | Category | Primary Focus | Best Use Case |
+| #  | Tool | Category | Primary Focus | Best Use Case |
 |:-- |:--- | :--- | :--- | :--- |
 | 1  | **Portainer** | **Orchestration** | Container Management | GUI for native QNAP docker lifecycle. |
 | 2  | **Uptime Kuma** | **Availability** | Web/Service Uptime | Simple "Up/Down" dashboard with alerts. |
