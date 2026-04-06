@@ -13,7 +13,7 @@ This is a new project commenced in April 2026 to consolidate experiments with in
 
 ## Core Services
 
-Based upon, professional experiance, job descriptions, expanding my support capabilites and intended learning pathways for linux admin and devops.  Since my professional domain is trading platforms, the tools list reflects what is likely to be relevant those firms, and the use cases relevant to support activies, within brokers, banks, hedge funds or software vendors that sell solutions to these firms.
+Based upon professional experiance, job descriptions, expanding my support capabilites and intended learning pathways for linux admin and devops.  Since my professional domain is trading platforms, the tools list reflects what is likely to be relevant those firms, and the use cases relevant to support activies, within brokers, banks, hedge funds or software vendors that sell solutions to these firms.
 
 The "caveat" in this thinking, every tool needs to offer a free community edition which can be deployed via docker.  I have used Splunk in the past, there is a free version this could be added to the mix, zabbix, a do everything tool, maybe? Datadog offer free accounts, but dont have self hosted, alternatives like SigNoz or Netdata could be dropped in the observability stack, but that is generating to much overlap.  The intention is to choose one tool in each category that has a different primary focus, and create a few projects on each, that are not the scope of the other tools.
 
