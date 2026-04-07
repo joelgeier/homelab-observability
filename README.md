@@ -24,7 +24,8 @@ The "caveat" in this thinking, every tool needs to offer a free community editio
 | 1  | **Portainer** | **Orchestration** | Container Management | GUI for native QNAP docker lifecycle. |
 | 2  | **Uptime Kuma** | **Availability** | Web/Service Uptime | Simple "Up/Down" dashboard with alerts. |
 | 3  | **Docker-ELK** | **Logging** | Search & Troubleshooting | Heavy log analysis for Kafka/Clickhouse. |
-| 4  | **Nagios Core** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
+| 4a | **Nagios Core** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
+| 4b | **checkmk** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
 | 5  | **Graylog** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
 | 6  | **Prometheus** | **Performance** | Time-Series Metrics | Scraped application performance (JVM, DBs). |
 | 7  | **Grafana** | **Visualization** | Unified Dashboarding | One "Single Pane of Glass" for all data. |
