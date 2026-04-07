@@ -144,6 +144,40 @@ The stack will be deployed as a **single Docker Compose project** (Portainer Sta
 Pro-Tip for the VM: Since you are using Debian 13, I highly recommend creating a Docker Network called monitoring_nw in your Compose file so Phase II tools can "see" Phase IV tools by name.
 Does this phased roadmap look like a solid plan for your GitHub repo's README.md?
 
+
+------------------------------
+## 🛠️ Unified Agent Strategy
+To ensure deep observability across all 10 tools on labhost00, every client host (labhost01, labhost02, etc.) runs a consolidated agent stack. This stack is deployed via a single automated script.
+## Agent Registry & Responsibilities
+
+| Agent | Source Tool | Role & Responsibility | Replaces / Consolidates |
+|---|---|---|---|
+| Elastic Agent | ELK / Graylog | Unified Data Shipper: System metrics, container logs, and network traffic. Managed via Fleet. | Filebeat, Metricbeat, Packetbeat |
+| Wazuh Agent | Wazuh | Security & SIEM: File Integrity Monitoring (FIM) and vulnerability detection. | OSSEC, Rootcheck |
+| Checkmk Agent | Checkmk | Infrastructure Health: Deep hardware monitoring, SMART status, and OS service health. | SNMP (for Linux hosts) |
+| NCPA Agent | Nagios Core | Custom Checks: Executes local bash/python scripts for unique lab conditions. | NRPE, check_by_ssh |
+| Portainer Agent | Portainer | Orchestration: Enables remote Docker management and container console access. | Direct Docker API exposure |
+| Node Exporter | Prometheus | Performance Metrics: High-resolution time-series metrics for Grafana dashboards. | N/A |
+
+## Estimated Resource Impact (Per Client)
+
+| Agent | Average RAM Usage | Impact Level |
+|---|---|---|
+| Elastic Agent | 200–400 MB | Moderate |
+| Wazuh Agent | 60–120 MB | Low |
+| NCPA Agent | 25–45 MB | Very Low |
+| Node Exporter | 15–30 MB | Very Low |
+| Portainer Agent | 15–30 MB | Very Low |
+| Checkmk Agent | 5–15 MB | Negligible |
+| TOTAL AGGREGATE | ~320–640 MB | Lightweight |
+
+## Deployment Logic
+All agents are deployed using the scripts/02-client-full-deploy.sh script. This handles binary installation, systemd service enablement, and automatic enrollment to the labhost00 hub.
+------------------------------
+Rest well! When you're back, do you want to kick off the Phase I YAML for the Portainer and Uptime Kuma directories?
+
+
+
 ## Maintenance & Backup
 
 - **Config:** All Compose files and custom configs are mirrored to GitHub.
