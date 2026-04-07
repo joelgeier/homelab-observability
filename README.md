@@ -26,10 +26,21 @@ The "caveat" in this thinking, every tool needs to offer a free community editio
 | 3  | **Docker-ELK** | **Logging** | Search & Troubleshooting | Heavy log analysis for Kafka/Clickhouse. |
 | 4a | **Nagios Core** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
 | 4b | **checkmk** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
-| 5  | **Graylog** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
 | 6  | **Prometheus** | **Performance** | Time-Series Metrics | Scraped application performance (JVM, DBs). |
 | 7  | **Grafana** | **Visualization** | Unified Dashboarding | One "Single Pane of Glass" for all data. |
+| 5  | **Graylog** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
+| 5  | **wazuh** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
 | 8  | **Alertmanager** | **Notification** | Event Alerting | Notify DevOps via messaging App, of system failure |
+
+add wazuh, bash script for wazuh agents, add wazah agent to infra scrip
+
+#### scratchpad for dashboard - delete 
+
+panel 1 - Orchestration 
+panel 2 - Infrastuture 
+Panel 3 - Application ELK Stack 
+Panel 4 - XDR & SIEM
+Panel 5 - Notications
 
 ## Why So Many Tools? (Key Differentiators)
 
