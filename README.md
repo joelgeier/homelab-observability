@@ -23,14 +23,15 @@ The "caveat" in this thinking, every tool needs to offer a free community editio
 |:-- |:--- | :--- | :--- | :--- |
 | 1  | **Portainer** | **Orchestration** | Container Management | GUI for native QNAP docker lifecycle. |
 | 2  | **Uptime Kuma** | **Availability** | Web/Service Uptime | Simple "Up/Down" dashboard with alerts. |
-| 3  | **Docker-ELK** | **Logging** | Search & Troubleshooting | Heavy log analysis for Kafka/Clickhouse. |
-| 4a | **Nagios Core** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
-| 4b | **checkmk** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
-| 6  | **Prometheus** | **Performance** | Time-Series Metrics | Scraped application performance (JVM, DBs). |
-| 7  | **Grafana** | **Visualization** | Unified Dashboarding | One "Single Pane of Glass" for all data. |
-| 5  | **Graylog** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
-| 5  | **wazuh** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
-| 8  | **Alertmanager** | **Notification** | Event Alerting | Notify DevOps via messaging App, of system failure |
+| 3  | **Prometheus** | **Performance** | Time-Series Metrics | Scraped application performance (JVM, DBs). |
+| 4  | **Alertmanager** | **Notification** | Event Alerting | Notify DevOps via messaging App, of system failure |
+| 5  | **Grafana** | **Visualization** | Unified Dashboarding | One "Single Pane of Glass" for all data. |
+| 6  | **checkmk** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
+| 7  | **Nagios Core** | **Infrastructure** | Physical Hardware State | SNMP for QNAP RAID, Meraki, & HP iLO. |
+| 8  | **Docker-ELK** | **Logging** | Search & Troubleshooting | Heavy log analysis for Kafka/Clickhouse. |
+| 9  | **Graylog** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
+| 10  | **wazuh** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
+
 
 add wazuh, bash script for wazuh agents, add wazah agent to infra scrip
 
