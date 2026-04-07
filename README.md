@@ -118,8 +118,37 @@ The stack will be deployed as a **single Docker Compose project** (Portainer Sta
 - [ ] **Networking:** Use a dedicated Docker bridge network within the stack for internal communication.
 
 
+## The "Day 0" Deployment Roadmap
+
+| Phase | # | Tool | Logic for Order |
+|---|---|---|---|
+| I: The Foundation | 1 | Portainer | Your "Command Center." Deploy this first so you can monitor logs and container health for the other 9. |
+| | 2 | Uptime Kuma | The "Pulse Check." Immediately add the other 9 tool URLs as you deploy them to see them go "Green." |
+| II: The Metrics Hub | 3 | Prometheus | The data collector. It needs to be up before Alertmanager or Grafana can do anything useful. |
+| | 4 | Alertmanager | Pairs with Prometheus. Get your notification logic (Discord/Slack/Email) tested early. |
+| | 5 | Grafana | The "Single Pane of Glass." Connect it to Prometheus immediately to see your first live graphs. |
+| III: Infrastructure | 6 | Checkmk | The heavy lifter for SNMP/Hypervisors. It's more modern and easier to "Dockerize" than Nagios. |
+| | 7 | Nagios Core | Deploy this next to handle legacy SNMP or specific custom scripts that Checkmk might not cover. |
+| IV: The Heavy Hitters | 8 | Docker-ELK | Warning: High RAM usage. Requires vm.max_map_count host tweaks. Get the log engine running first. |
+| | 9 | Graylog | Sits "on top" of MongoDB/OpenSearch. Use this for user-friendly log searching and dashboarding. |
+| | 10 | Wazuh | The most complex. It has its own Indexer, Dashboard, and Manager. Best saved for last once the VM is stable. |
+
+## Strategic Benefits of this Order:
+
+   1. Phase I (1-2): Confirms your Docker networking and external IP access work perfectly with minimal resource load.
+   2. Phase II (3-5): Builds your "Observability Core." You can now monitor the CPU/RAM usage of the heavier tools in Phase IV using Prometheus/Grafana.
+   3. Phase III (6-7): Connects your "Boxes" (VMware/Proxmox). Since these use APIs/SNMP, they don't require agent installs yet.
+   4. Phase IV (8-10): These tools are the most likely to crash a VM if resources aren't managed. By doing them last, you have 7 other tools already working to help you troubleshoot why they failed.
+
+Pro-Tip for the VM: Since you are using Debian 13, I highly recommend creating a Docker Network called monitoring_nw in your Compose file so Phase II tools can "see" Phase IV tools by name.
+Does this phased roadmap look like a solid plan for your GitHub repo's README.md?
 
 ## Maintenance & Backup
+
 - **Config:** All Compose files and custom configs are mirrored to GitHub.
 - **Volumes:** QNAP snapshots protect the `/share/Container/` directory.
+
+
+
+
 
