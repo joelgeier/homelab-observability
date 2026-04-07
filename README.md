@@ -28,6 +28,7 @@ The "caveat" in this thinking, every tool needs to offer a free community editio
 | 5  | **Graylog** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
 | 6  | **Prometheus** | **Performance** | Time-Series Metrics | Scraped application performance (JVM, DBs). |
 | 7  | **Grafana** | **Visualization** | Unified Dashboarding | One "Single Pane of Glass" for all data. |
+| 8  | **Alertmanager** | **Notification** | Event Alerting | Notify DevOps via messaging App, of system failure |
 
 ## Why So Many Tools? (Key Differentiators)
 
