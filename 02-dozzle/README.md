@@ -1,22 +1,15 @@
 # Dozzle
 
-Dozzle is an open-source project sponsored by Docker OSS. It is a lightweight, web-based log viewer designed to simplify monitoring and debugging containerized applications across Docker, Docker Swarm, and Kubernetes environments.
+Dozzle is an open-source project sponsored by Docker OSS. It is a lightweight, web-based log viewer designed to simplify monitoring and debugging containerized applications across Docker, Docker Swarm, and Kubernetes environments.  Instead of manually running terminal commands like docker logs, Dozzle provides a lightweight web-based interface where you can monitor all your container logs live in one place. 
 
 - Website: https://dozzle.dev/
 - Docs: https://dozzle.dev/guide/what-is-dozzle
 - GitHub: https://github.com/amir20/dozzle
 - Reference Docker Compoose: https://github.com/amir20/dozzle/blob/master/docker-compose.yml
 
+## Why is Dozzle in this project?
 
-
-Instead of manually running terminal commands like docker logs, Dozzle provides a lightweight web-based interface where you can monitor all your container logs live in one place. 
-
-## Key Features
-
-How It Works
-Dozzle typically runs as a Docker container itself. It connects to the Docker daemon socket (/var/run/docker.sock) to read and stream log data to its web interface. It does not require a database or heavy configuration, making it a "plug-and-play" solution for developers and home lab enthusiasts. 
-You can find more detailed deployment guides on the official Dozzle documentation or explore the source code on GitHub. 
-
+Dozzle typically runs as a Docker container itself. It connects to the Docker daemon socket (/var/run/docker.sock) to read and stream log data to its web interface. It does not require a database or heavy configuration, making it a "plug-and-play" solution for developers and home lab enthusiasts.  This is the inward looking log tool that monitors the homelab-observability stack, whilst the other obvervability tools look outwards to external systems.
 
 ## Key Features
 
