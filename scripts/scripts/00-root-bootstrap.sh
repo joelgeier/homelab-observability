@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# 00-root-bootstrap.sh — run as ROOT before any other homelab-base script
+# 00-root-bootstrap.sh — run as ROOT before any other homelab-observability script
 # ==============================================================================
 #
 # PROJECT:  homelab-observability
 # FILE:     scripts/00-root-bootstrap.sh
-# VERSION:  v0.1  2026-04-03
+# VERSION:  v0.1  2026-04-08
 #
 # PURPOSE
 # ──────────────────────────────────────────────────────────────────────────────
 # Installs sudo, creates labadmin user with correct group membership,
-# copies SSH authorized_keys, and clones the homelab-base repo. Must run
+# copies SSH authorized_keys, and clones the homelab-observability repo. Must run
 # as root before any other script since sudo does not exist on a fresh
 # Debian 13 install when a root password was set during installation.
 #
 # CHANGELOG
 # ──────────────────────────────────────────────────────────────────────────────
-#     v0.1  2026-04-03  Initial release
+#     v0.1  2026-04-08  Initial release - adapted from homelab-base
 #
 # ==============================================================================
 #
@@ -27,7 +27,7 @@
 # PURPOSE
 # ──────────────────────────────────────────────────────────────────────────────
 # Debian 13 does not install sudo when a root password is set during
-# installation. All other homelab-base scripts use sudo and will fail
+# installation. All other homelab-observability scripts use sudo and will fail
 # immediately without it.
 #
 # This script must be run as root BEFORE any other script. It:
@@ -35,7 +35,7 @@
 #   2. Creates the labadmin user (if missing)
 #   3. Adds labadmin to the sudo group (if not already)
 #   4. Copies SSH authorized_keys from calling user (if available)
-#   5. Optionally clones the homelab-base repo into labadmin home
+#   5. Optionally clones the homelab-observability repo into labadmin home
 #
 # USAGE
 # ──────────────────────────────────────────────────────────────────────────────
@@ -56,7 +56,7 @@
 #   1. exit   (leave root session)
 #   2. Log in as labadmin
 #   3. passwd  (change from temporary password immediately)
-#   4. cd ~/homelab-base && bash scripts/01-preflight.sh
+#   4. cd ~/homelab-observability && bash scripts/01-preflight.sh
 #
 # ==============================================================================
 set -euo pipefail
@@ -72,7 +72,7 @@ fail()    { echo -e "${RED}[FAIL]${NC}    $*"; exit 1; }
 
 echo ""
 echo "========================================"
-echo "  homelab-base bootstrap"
+echo "  homelab-observability bootstrap"
 echo "  run as root — establishes sudo + $LABADMIN_USER"
 echo "  host: $(hostname)"
 echo "========================================"
@@ -167,29 +167,29 @@ else
   fi
 fi
 
-# ── Clone homelab-base repo ────────────────────────────────────────────────────
-section "homelab-base repository"
-REPO_DIR="$LABADMIN_HOME/homelab-base"
+# ── Clone homelab-observability repo ───────────────────────────────────────────
+section "homelab-observability repository"
+REPO_DIR="$LABADMIN_HOME/homelab-observability"
 
 if [[ -d "$REPO_DIR/.git" ]]; then
-  skip "homelab-base repo already at $REPO_DIR"
+  skip "homelab-observability repo already at $REPO_DIR"
   info "Pulling latest changes..."
   sudo -u "$LABADMIN_USER" git -C "$REPO_DIR" pull --ff-only 2>/dev/null && \
     ok "Repo updated" || \
-    info "Could not pull — check network or run manually: git -C ~/homelab-base pull"
+    info "Could not pull — check network or run manually: git -C ~/homelab-observability pull"
 elif command -v git &>/dev/null; then
-  info "Cloning homelab-base into $REPO_DIR..."
+  info "Cloning homelab-observability into $REPO_DIR..."
   if sudo -u "$LABADMIN_USER" git clone \
-    https://github.com/joelgeier/homelab-base.git \
+    https://github.com/joelgeier/homelab-observability.git \
     "$REPO_DIR" 2>/dev/null; then
-    ok "homelab-base cloned to $REPO_DIR"
+    ok "homelab-observability cloned to $REPO_DIR"
   else
     info "Could not clone repo (network or git issue) — clone manually:"
-    info "  git clone https://github.com/joelgeier/homelab-base.git ~/homelab-base"
+    info "  git clone https://github.com/joelgeier/homelab-observability.git ~/homelab-observability"
   fi
 else
   info "git not yet installed — repo will be cloned after 02-packages.sh runs"
-  info "  Once git is installed: git clone https://github.com/joelgeier/homelab-base.git ~/homelab-base"
+  info "  Once git is installed: git clone https://github.com/joelgeier/homelab-observability.git ~/homelab-observability"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────────
@@ -209,6 +209,6 @@ echo "  ────────────────────────
 echo "  1. Exit root:          exit"
 echo "  2. Login as labadmin:  ssh $LABADMIN_USER@$(hostname -I | awk '{print $1}')"
 echo "  3. Change password:    passwd"
-echo "  4. Go to repo:         cd ~/homelab-base"
+echo "  4. Go to repo:         cd ~/homelab-observability"
 echo "  5. Run preflight:      bash scripts/01-preflight.sh"
 echo ""
