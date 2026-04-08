@@ -121,19 +121,6 @@ My homelab projects have been consolidated into 3 primary projects, each are doc
 
 
 
-## Project: ELK Stack Deployment
-**Goal:** Deploy a persistent Elastic Stack to ingest logs/metrics from volatile lab hosts.
-
-### Deployment Strategy
-The stack will be deployed as a **single Docker Compose project** (Portainer Stack) to ensure service inter-dependency and simplified networking.
-
-#### 1. Architecture
-- **Elasticsearch (Engine):** The database and search engine. 
-    - *Resource Allocation:* 8GB-16GB RAM.
-    - *Persistence:* Mapped to `/share/Container/elk/data`.
-- **Kibana (UI):** The visualization layer. Accessible via QNAP IP on port 5601.
-- **Logstash/Fleet (Ingestion):** The entry point for data from LabHosts.
-
 #### 2. Connection Logic
 - **LabHosts (Spokes):** Run lightweight agents (Filebeat/Metricbeat) or Elastic Agent.
 - **Data Flow:** LabHost Agents -> QNAP Controller (Portainer Stack) -> Elasticsearch.
