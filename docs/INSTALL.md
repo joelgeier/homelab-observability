@@ -1,8 +1,9 @@
 # labhost00 - Debian Installation Configuration
 
 **Date:** 2026-04-08  
-**OS:** Debian 13 (Trixie)  
-**Purpose:** Observability and monitoring hub VM on QNAP Virtualization Station
+**OS:** Debian 13.4 (Trixie)  
+**Purpose:** Observability and monitoring hub VM on QNAP Virtualization Station  
+**VM UUID:** `eb22ec4b-7092-4942-8475-fd7ffc3c7ff6`
 
 ---
 
@@ -157,13 +158,66 @@ All additional software will be installed via homelab-observability bootstrap sc
 
 ## VM Host Information
 
+### QNAP Virtualization Station Configuration
+
 | Parameter | Value |
 |-----------|-------|
-| Hypervisor | QNAP Virtualization Station |
-| Physical Host | QNAP TVS-h1288X |
-| CPU Allocation | TBD |
-| RAM Allocation | TBD (minimum 8GB, recommend 16GB) |
-| Disk Type | Virtual disk on QNAP storage pool |
+| **Hypervisor** | QNAP Virtualization Station |
+| **Physical Host** | QNAP TVS-h1288X |
+| **VM Name** | labhost00 |
+| **VM UUID** | `eb22ec4b-7092-4942-8475-fd7ffc3c7ff6` |
+
+### System Resources
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **CPU Model** | Passthrough | Host CPU features passed through |
+| **CPUs** | 2 cores | |
+| **CPU Hot Add** | Disabled | |
+| **Memory** | 16 GB | Sufficient for full observability stack |
+| **Memory Sharing** | Enabled | |
+| **Dynamic Memory** | Disabled | Fixed 16GB allocation |
+| **Boot Firmware** | UEFI | |
+
+### Storage
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **Virtual Disk** | `/Virtual Machines/labhost00/labhost00_00.img` | |
+| **Capacity** | 100 GB | Currently 2.22 GB used |
+| **Controller** | VirtIO | High-performance paravirtualized storage |
+| **Cache Mode** | Writeback | Better performance |
+
+### Network
+
+| Parameter | Value | Notes |
+|-----------|-------|-------|
+| **Network Adapter** | Network Adapter 1 | |
+| **Virtual Switch** | Virtual Switch 6 (192.168.1.202) | 2.5 GbE |
+| **MAC Address** | `52:54:00:77:4b:72` | |
+| **Model** | VirtIO | High-performance paravirtualized NIC |
+| **Static IP** | 192.168.1.100 | Configured during Debian install |
+
+### Display and Input
+
+| Parameter | Value |
+|-----------|-------|
+| **Video** | QXL |
+| **Audio** | Disabled |
+| **USB** | USB 3.0 |
+| **Keyboard** | English (US) |
+| **VNC Password** | Disabled |
+| **VNC Port** | Auto (5901) |
+| **SPICE Port** | Disabled |
+
+### Other Settings
+
+| Parameter | Value |
+|-----------|-------|
+| **Auto Start Policy** | None (manual start) |
+| **Virtio-serial** | Enabled |
+| **TPM 2.0** | Disabled |
+| **CD/DVD ROM** | `/SeagateSSD/Images/debian-13.4.0-amd64-DVD-1.iso` (install media) |
 
 ---
 
