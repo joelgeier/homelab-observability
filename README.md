@@ -1,15 +1,76 @@
-# homelab-controller: Central Management & Observability Hub
+# homelab-observability: Central Management & Observability Hub
 
-https://github.com/joelgeier/homelab-controller/ 
+https://github.com/joelgeier/homelab-observability 
 
 ## Overview
 
-The **Controller** (QNAP Xeon D-1250 | 128GB RAM) serves as the persistent "Brain" of the homelab. While `labhost01` and `labhost02` are volatile and frequently rebuilt, the Controller remains stable to provide management, monitoring, and data persistence.
+The **labhost00** VM (running on QNAP Virtualization Station) serves as the persistent observability and monitoring hub. While `labhost01` and `labhost02` are volatile compute nodes that are frequently rebuilt, labhost00 remains stable to provide centralized monitoring, logging, and alerting.
 
-**QNAP Container Station** is used to deploy the services as docker "applications" the QNAP term for what Portainer calls "stacks"
+This project consolidates experiments with individual observability tools into a stable, production-ready stack. The tools selected reflect what is commonly found in job descriptions for Linux admin, DevOps, SRE, and platform engineering roles — particularly within trading platforms, banks, hedge funds, and fintech vendors.
 
-This is a new project commenced in April 2026 to consolidate experiments with individual tools and create a stable observability stack, upon which I can then ponder attempting various use cases.  These use cases are captured in the "projects" folder under each tools folder, in my GitHub project 
+---
 
+## Topology
+
+```
+[ RESIDENTIAL ROUTER ] (Gateway)
+          │
+[ MERAKI MS220-8P ] (Network Backbone)
+    │
+    ├────[ QNAP TVS-h1288X ] (Controller & Monitoring Hub)
+    │         │
+    │         └── Virtualization Station
+    │               └── labhost00 (Debian 13 VM) ← homelab-observability
+    │                     ├── Portainer
+    │                     ├── LGTM Stack (Prometheus, Grafana, Alertmanager)
+    │                     ├── ELK Stack
+    │                     ├── Graylog
+    │                     ├── Nagios / Checkmk
+    │                     └── Wazuh
+    │                           ↑
+    │                           │ (agents send telemetry)
+    │                           │
+    ├────[ HP ProDesk G3 ] ──── labhost01 (Debian 13 VM)
+    │         Proxmox             ├── stream-lake project
+    │                             └── Monitoring agents
+    │
+    └────[ HP MicroServer G8 ] ── labhost02 (Debian 13 VM)
+              ESXi                  ├── deep-thought project
+                                    └── Monitoring agents
+```
+
+**Data Flow:**
+- labhost01 & labhost02 run lightweight agents (Node Exporter, Filebeat, Wazuh Agent, etc.)
+- Agents push metrics, logs, and security events → labhost00
+- labhost00 aggregates, indexes, and visualizes all telemetry
+- When labhosts are wiped/rebuilt, historical data persists on labhost00
+
+---
+
+## Architecture
+
+| Plane | Physical Host | Hypervisor | VM (labhost) | Project Stack | Purpose |
+|---|---|---|---|---|---|
+| **Controller** | QNAP TVS-h1288X | Virtualization Station | labhost00 | homelab-observability | Monitoring hub |
+| **Compute** | host01-prodesk<br>HP ProDesk G3 | Proxmox VE | labhost01 | stream-lake | Data workloads |
+| **Compute** | host02-hpmicroserver<br>HP MicroServer Gen8 | VMware ESXi | labhost02 | deep-thought | AI/ML workloads |
+
+All nodes are connected via [Tailscale](https://tailscale.com) mesh network for secure, encrypted communication between monitoring agents and the observability stack.
+
+---
+
+## Why labhost00 on QNAP?
+
+Originally planned to use QNAP **Container Station**, but Container Station's networking and docker-compose limitations made it unsuitable for a multi-tool observability stack. Switched to **Virtualization Station** to run a full Debian 13 VM with unrestricted Docker access.
+
+**Benefits:**
+- ✅ Full Docker Compose control (no Container Station restrictions)
+- ✅ Persistent — QNAP stays on 24/7 while compute nodes are volatile
+- ✅ Independent from compute workloads
+- ✅ Centralized data — survives labhost rebuilds
+- ✅ Same Debian 13 base as labhost01 and labhost02 (consistent tooling)
+
+---
 
 ## Core Services
 
@@ -33,23 +94,11 @@ The "caveat" in this thinking, every tool needs to offer a free community editio
 | 10  | **wazuh** | **Security/SIEM** | Log Correlation | Auth auditing (Authentik) & Syslog. |
 
 
-add wazuh, bash script for wazuh agents, add wazah agent to infra scrip
-
-#### scratchpad for dashboard - delete 
-
-panel 1 - Orchestration 
-panel 2 - Infrastuture 
-Panel 3 - Application ELK Stack 
-Panel 4 - XDR & SIEM
-Panel 5 - Notications
-
 ## Why So Many Tools? (Key Differentiators)
 
 - **Nagios vs. Prometheus:** Nagios tracks the *bones* (Is the fan spinning? Is the disk healthy?). Prometheus tracks the *pulse* (How many queries per second?).
 - **ELK vs. Graylog:** ELK is a powerful "search engine" for raw logs. Graylog is a "security engine" designed to parse, stream, and alert on structured logs (like Authentik's auth events).
 - **Uptime Kuma vs. Nagios:** Kuma is for a quick "Is my website up?" check. Nagios is for deep-dive enterprise infrastructure monitoring.
-
-Portainer is presently deployed as a native QNAP app, not going move that at this time.  Prometheus and Grafana are living inside the labhost01 - streamlake project, not good architecture but it can stay there for the momment.  Uptime-Kuma is muppet level simple, this project cycle is focused on standing up docker-elk, nagios and graylog in container station, and implementing one use case in each.
 
 ## Homelab Project Stacks 
 
@@ -64,29 +113,6 @@ My homelab projects have been consolidated into 3 primary projects, each are doc
 - **In-Scope:** Monitoring logic, container orchestration, hardware telemetry.
 - **Out-of-Scope:** Private NAS functions, personal storage, or shared house network configs I'm not allowed to touch.
 
-
-
-## Technical Topology & "Old Junk" Hardware
-
-The **Meraki MS220-8P** is the backbone. Even if my lab hosts (ProDesk/Microserver) are down, the QNAP stays on.
-
-[ RESIDENTIAL ROUTER ] (Gateway)
-
-          |
-[ MERAKI MS220-8P ] (The Switch Fabric)
-    |
-    |---------- [ QNAP TVS-h1288x ] (The Monitoring Hub)
-
-    |             |-- Container Station: [ PORTAINER ] [ NAGIOS ] [ ELK ] ...
-    |
-
-    |---------- [ HP PRODESK G3 ] (labhost01: Data Projects)
-    |             |-- Proxmox / RHEL Admin / Debian 13
-    |
-
-    |---------- [ HP MICROSERVER G8 ] (labhost02: AI/Agents)
-                  |-- Port 1: iLO 4 (Management - Unlicensed)
-                  |-- Port 2: ESXi (Hypervisor)
 
 
 ## Research Archive & Inspiration
