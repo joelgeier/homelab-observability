@@ -1,0 +1,52 @@
+  # ────────────────────────────────────────────────────────────────────────────
+  # DOZZLE — real-time container log viewer
+  #
+  # Streams logs live from Docker daemon — no persistent data directory needed.
+  # Read-only Docker socket — cannot start, stop, or modify containers.
+  #
+  # ⚠ No built-in authentication. Access currently restricted to tailnet.
+  # Enable Authentik forward auth during security hardening phase.
+  # ────────────────────────────────────────────────────────────────────────────
+  dozzle:
+    image: amir20/dozzle:latest
+    container_name: dozzle
+    restart: unless-stopped
+
+    networks:
+      - traefik-public
+
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+    environment:
+      - TZ=${TZ:-UTC}
+      # Uncomment to enable Dozzle's own simple auth:
+      # - DOZZLE_USERNAME=${DOZZLE_USERNAME}
+      # - DOZZLE_PASSWORD=${DOZZLE_PASSWORD}
+      # - DOZZLE_KEY=${DOZZLE_KEY}
+      # Uncomment to restrict visible containers:
+      # - DOZZLE_FILTER=status=running
+
+    # Uncomment to expose directly for dev/debug (bypasses Traefik):
+    # ports:
+    #   - "8082:8080"
+
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
+
+      # — Internal router —
+      - "traefik.http.routers.dozzle-internal.rule=Header(`X-Proxy-Target`, `logs.${DOMAIN}`)"
+      - "traefik.http.routers.dozzle-internal.entrypoints=webinternal"
+      - "traefik.http.routers.dozzle-internal.service=dozzle-internal-svc"
+      - "traefik.http.services.dozzle-internal-svc.loadbalancer.server.port=8080"
+
+      # — Secure router —
+      - "traefik.http.routers.dozzle-secure.rule=Host(`logs.${DOMAIN}`)"
+      - "traefik.http.routers.dozzle-secure.entrypoints=websecure"
+      - "traefik.http.routers.dozzle-secure.service=dozzle-secure-svc"
+      - "traefik.http.routers.dozzle-secure.tls=true"
+      - "traefik.http.services.dozzle-secure-svc.loadbalancer.server.port=8080"
+
+      # FUTURE: Authentik SSO — recommended, log access is sensitive:
+      # - "traefik.http.routers.dozzle-secure.middlewares=authentik@docker"
