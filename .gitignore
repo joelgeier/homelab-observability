@@ -1,0 +1,46 @@
+# Environment and Secrets
+.env
+.env.local
+*.secret
+*.key
+*.pem
+
+# Docker and Container Data
+**/data/
+**/volumes/
+**/logs/
+
+# Elasticsearch/ELK data
+elasticsearch/data/
+logstash/data/
+kibana/data/
+
+# Prometheus/Grafana data
+prometheus/data/
+grafana/data/
+alertmanager/data/
+
+# Graylog data
+graylog/data/
+mongodb/data/
+
+# Wazuh data
+wazuh/data/
+
+# Temporary and backup files
+*.tmp
+*.bak
+*.swp
+*~
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Housekeeping tracking (temporary)
+HOUSEKEEPING.md
