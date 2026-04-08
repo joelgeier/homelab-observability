@@ -146,8 +146,11 @@ Does this phased roadmap look like a solid plan for your GitHub repo's README.md
 
 
 ------------------------------
+
 ## 🛠️ Unified Agent Strategy
+
 To ensure deep observability across all 10 tools on labhost00, every client host (labhost01, labhost02, etc.) runs a consolidated agent stack. This stack is deployed via a single automated script.
+
 ## Agent Registry & Responsibilities
 
 | Agent | Source Tool | Role & Responsibility | Replaces / Consolidates |
@@ -172,11 +175,8 @@ To ensure deep observability across all 10 tools on labhost00, every client host
 | TOTAL AGGREGATE | ~320–640 MB | Lightweight |
 
 ## Deployment Logic
+
 All agents are deployed using the scripts/02-client-full-deploy.sh script. This handles binary installation, systemd service enablement, and automatic enrollment to the labhost00 hub.
-------------------------------
-Rest well! When you're back, do you want to kick off the Phase I YAML for the Portainer and Uptime Kuma directories?
-
-
 
 ## Maintenance & Backup
 
