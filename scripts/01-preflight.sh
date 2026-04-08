@@ -151,12 +151,33 @@ fi
 
 # ── Internet ──────────────────────────────────────────────────────────────────
 section "Internet connectivity"
-if curl -s --max-time 5 https://debian.org > /dev/null 2>&1; then
-  ok "Internet reachable (HTTPS to debian.org)"
-elif curl -s --max-time 5 https://1.1.1.1 > /dev/null 2>&1; then
-  ok "Internet reachable (HTTPS to 1.1.1.1)"
+# Try curl first (preferred), fallback to wget, then ping (for minimal installs)
+if command -v curl &>/dev/null; then
+  if curl -s --max-time 5 https://debian.org > /dev/null 2>&1; then
+    ok "Internet reachable (HTTPS to debian.org via curl)"
+  elif curl -s --max-time 5 https://1.1.1.1 > /dev/null 2>&1; then
+    ok "Internet reachable (HTTPS to 1.1.1.1 via curl)"
+  else
+    fail "No internet connectivity — required for package installation and Docker image pulls"
+  fi
+elif command -v wget &>/dev/null; then
+  if wget -q --timeout=5 --spider https://debian.org 2>&1; then
+    ok "Internet reachable (HTTPS to debian.org via wget)"
+  elif wget -q --timeout=5 --spider https://1.1.1.1 2>&1; then
+    ok "Internet reachable (HTTPS to 1.1.1.1 via wget)"
+  else
+    fail "No internet connectivity — required for package installation and Docker image pulls"
+  fi
 else
-  fail "No internet connectivity — required for package installation and Docker image pulls"
+  # Fallback to ping for minimal Debian installs (curl/wget not yet installed)
+  info "curl/wget not installed yet — using ping for connectivity check"
+  if ping -c 2 -W 3 debian.org > /dev/null 2>&1; then
+    ok "Internet reachable (ping to debian.org) — DNS resolution working"
+  elif ping -c 2 -W 3 1.1.1.1 > /dev/null 2>&1; then
+    ok "Internet reachable (ping to 1.1.1.1) — network connectivity confirmed"
+  else
+    fail "No internet connectivity — required for package installation and Docker image pulls"
+  fi
 fi
 
 # ── Docker ────────────────────────────────────────────────────────────────────
@@ -198,27 +219,25 @@ else
 fi
 
 # ── Docker networks ───────────────────────────────────────────────────────────
-section "Docker networks (pre-deploy requirement)"
+section "Docker networks (informational)"
 if command -v docker &>/dev/null && sudo systemctl is-active --quiet docker 2>/dev/null; then
-  if docker network ls --format '{{.Name}}' 2>/dev/null | grep -q "^observability_network$"; then
-    ok "observability_network exists"
-  else
-    warn "observability_network missing — will be created during deployment"
-    info "  or create manually: docker network create observability_network"
-  fi
+  info "Docker networks will be created per-stack during deployment"
+  info "  Each observability tool will define its own network in docker-compose.yml"
 else
-  info "Docker not running — cannot check networks yet"
+  info "Docker not running — networks will be checked after 03-docker.sh"
 fi
 
 # ── Observability host directories ────────────────────────────────────────────
-section "Observability host directories (informational)"
-# DATA_PATH from .env — default /opt/observability or /share/Container/observability (QNAP)
-DATA_PATH="${DATA_PATH:-/opt/observability}"
+section "Observability host directories"
+# DATA_PATH matches project standard — /mnt/data/homelab-observability
+DATA_PATH="${DATA_PATH:-/mnt/data/homelab-observability}"
 
 if [[ -d "$DATA_PATH" ]]; then
   ok "$DATA_PATH exists (data root)"
 else
-  info "$DATA_PATH missing — will be created during deployment"
+  warn "$DATA_PATH missing — create before deployment:"
+  info "  sudo mkdir -p $DATA_PATH"
+  info "  sudo chown labadmin:labadmin $DATA_PATH"
 fi
 
 # Summary ───────────────────────────────────────────────────────────────────
