@@ -1,7 +1,7 @@
 # ============================================================================
 # Wazuh - Security Information and Event Management (SIEM) Platform
 # ============================================================================
-# Version:       1.2.0
+# Version:       1.2.1
 # Last Updated:  2026-04-09
 # Purpose:       Enterprise-grade security monitoring for homelab
 # Dashboard:     https://labhost00.taild6529.ts.net:8443
@@ -17,6 +17,10 @@
 #   - Wazuh Dashboard: Web UI for monitoring (port 8443)
 # ============================================================================
 # Changelog:
+# 1.2.1 (2026-04-09) - Certificate path fixes
+#   - Fixed indexer cert paths: /etc/wazuh-indexer/certs/ (was /usr/share)
+#   - Fixed dashboard cert paths: /etc/wazuh-dashboard/certs/ (was /usr/share)
+#   - Matches official Wazuh container expectations
 # 1.2.0 (2026-04-09) - SSL certificate integration
 #   - Added certificate mounts from local ./certs/ directory
 #   - Certificates generated via generate-certs.yml
@@ -99,12 +103,12 @@ services:
       # Persistent data storage (alerts, events, indices)
       - wazuh-indexer-data:/var/lib/wazuh-indexer
       
-      # SSL certificates (generated via generate-certs.yml)
-      - ./certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
-      - ./certs/node-1.pem:/usr/share/wazuh-indexer/certs/indexer.pem:ro
-      - ./certs/node-1-key.pem:/usr/share/wazuh-indexer/certs/indexer-key.pem:ro
-      - ./certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
-      - ./certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
+      # SSL certificates (indexer expects them in /etc not /usr/share!)
+      - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
+      - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
+      - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
+      - ./certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
+      - ./certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
     
     # ── Resource Limits ─────────────────────────────────────────────────────
     ulimits:
@@ -192,10 +196,10 @@ services:
     
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
-      # SSL certificates
-      - ./certs/wazuh-dashboard.pem:/usr/share/wazuh-dashboard/certs/dashboard.pem:ro
-      - ./certs/wazuh-dashboard-key.pem:/usr/share/wazuh-dashboard/certs/dashboard-key.pem:ro
-      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
+      # SSL certificates (dashboard expects them in /etc not /usr/share!)
+      - ./certs/dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
+      - ./certs/dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/etc/wazuh-dashboard/certs/root-ca.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
