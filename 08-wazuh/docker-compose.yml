@@ -1,7 +1,7 @@
 # ============================================================================
 # Wazuh - Security Information and Event Management (SIEM) Platform
 # ============================================================================
-# Version:       1.2.1
+# Version:       1.2.2
 # Last Updated:  2026-04-09
 # Purpose:       Enterprise-grade security monitoring for homelab
 # Dashboard:     https://labhost00.taild6529.ts.net:8443
@@ -17,6 +17,10 @@
 #   - Wazuh Dashboard: Web UI for monitoring (port 8443)
 # ============================================================================
 # Changelog:
+# 1.2.2 (2026-04-09) - Indexer certificate path fix
+#   - Fixed indexer cert paths: /usr/share/wazuh-indexer/certs/ (was /etc/)
+#   - Indexer requires /usr/share/ due to Java SecurityManager restrictions
+#   - Dashboard still uses /etc/wazuh-dashboard/certs/ (correct)
 # 1.2.1 (2026-04-09) - Certificate path fixes
 #   - Fixed indexer cert paths: /etc/wazuh-indexer/certs/ (was /usr/share)
 #   - Fixed dashboard cert paths: /etc/wazuh-dashboard/certs/ (was /usr/share)
@@ -103,12 +107,12 @@ services:
       # Persistent data storage (alerts, events, indices)
       - wazuh-indexer-data:/var/lib/wazuh-indexer
       
-      # SSL certificates (indexer expects them in /etc not /usr/share!)
-      - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
-      - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
-      - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
-      - ./certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
-      - ./certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
+      # SSL certificates (indexer needs them in /usr/share not /etc due to Java SecurityManager)
+      - ./certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
+      - ./certs/node-1.pem:/usr/share/wazuh-indexer/certs/indexer.pem:ro
+      - ./certs/node-1-key.pem:/usr/share/wazuh-indexer/certs/indexer-key.pem:ro
+      - ./certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
+      - ./certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
     
     # ── Resource Limits ─────────────────────────────────────────────────────
     ulimits:
