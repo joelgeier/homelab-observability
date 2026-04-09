@@ -1,1 +1,113 @@
+# ============================================================================
+# Traefik Route: Dozzle on labhost00 (Cross-Host Routing)
+# ============================================================================
+# Version:       1.0.0
+# Last Updated:  2026-04-09
+# Service:       Dozzle - Real-time container log viewer
+# Backend:       labhost00:8080 (cross-host routing via IP)
+# Domain:        logs.labhost00.jg-labs.dev
+# Traefik Host:  labhost01 (192.168.1.101)
+# Target Host:   labhost00 (192.168.1.100)
+# ============================================================================
+# FILE LOCATION: This file lives on labhost01 where Traefik is running
+#   /mnt/data/homelab-base/traefik/config/router-labhost00-dozzle.yml
+# 
+# Traefik reads this file and proxies requests to labhost00
+# ============================================================================
+# Changelog:
+# 1.0.0 (2026-04-09) - Initial route configuration
+#   - Cross-host routing to 192.168.1.100:8080
+#   - HTTPS via websecure entrypoint
+#   - TLS certificate via cloudflare resolver
+#   - Authentication disabled (add Authentik later)
+# ============================================================================
 
+http:
+  # ── Router Configuration ────────────────────────────────────────────────
+  routers:
+    dozzle-labhost00:
+      # Route incoming requests for this domain
+      rule: "Host(`logs.labhost00.jg-labs.dev`)"
+      
+      # Use HTTPS entrypoint (defined in traefik.yml static config)
+      entryPoints:
+        - websecure
+      
+      # Link to service backend
+      service: dozzle-labhost00-svc
+      
+      # TLS configuration
+      tls:
+        certResolver: cloudflare  # Or letsencrypt, depending on your setup
+      
+      # Future: Add authentication middleware
+      # Uncomment when Authentik SSO is deployed:
+      # middlewares:
+      #   - authentik@docker
+      
+      # Optional: Add rate limiting
+      # middlewares:
+      #   - ratelimit-dozzle
+  
+  # ── Service Backend ─────────────────────────────────────────────────────
+  services:
+    dozzle-labhost00-svc:
+      loadBalancer:
+        servers:
+          # CRITICAL: Use IP address, not container name (cross-host routing)
+          - url: "http://192.168.1.100:8080"
+        
+        # Optional: Health check to verify labhost00 is reachable
+        healthCheck:
+          path: /
+          interval: 30s
+          timeout: 5s
+  
+  # ── Middlewares (Optional) ──────────────────────────────────────────────
+  # Uncomment if you want rate limiting:
+  # middlewares:
+  #   ratelimit-dozzle:
+  #     rateLimit:
+  #       average: 100
+  #       burst: 50
+  #       period: 1m
+
+# ============================================================================
+# DNS Configuration Required (Cloudflare):
+# ============================================================================
+# Add this DNS record in Cloudflare:
+#   Type: A or CNAME
+#   Name: logs.labhost00.jg-labs.dev
+#   Value: 192.168.1.101 (labhost01 - where Traefik runs)
+#   Proxy: Enabled (orange cloud) OR Disabled (DNS only)
+#
+# If using Cloudflare proxy:
+#   - Cloudflare terminates TLS, forwards to Traefik
+#   - Set certResolver to use Cloudflare API for cert generation
+#
+# If DNS only:
+#   - Traefik handles TLS directly via Let's Encrypt
+#   - Ensure port 443 is open to internet
+# ============================================================================
+
+# ============================================================================
+# Testing:
+# ============================================================================
+# 1. Ensure Dozzle is running on labhost00:
+#    ssh labadmin@192.168.1.100
+#    cd ~/homelab-observability/01-dozzle
+#    docker-compose ps
+#
+# 2. Test direct access (should work):
+#    curl http://192.168.1.100:8080
+#
+# 3. Add this file to Traefik config directory on labhost01:
+#    /mnt/data/homelab-base/traefik/config/router-labhost00-dozzle.yml
+#
+# 4. Traefik auto-detects file (file provider watch enabled)
+#    Check Traefik dashboard for new route
+#
+# 5. Test via domain:
+#    curl https://logs.labhost00.jg-labs.dev
+#    OR visit in browser
+# ============================================================================
