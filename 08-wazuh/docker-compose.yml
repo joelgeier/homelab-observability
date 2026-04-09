@@ -159,11 +159,10 @@ services:
       - DASHBOARD_USERNAME=kibanaserver
       - DASHBOARD_PASSWORD=kibanaserver
     volumes:
-      - ./certs/dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
-      - ./certs/dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
-      - ./certs/root-ca.pem:/etc/wazuh-dashboard/certs/root-ca.pem:ro
-      # ADD THIS LINE to bypass the permissions error:
-      - ./certs/opensearch_dashboards.keystore:/etc/wazuh-dashboard/opensearch_dashboards.keystore
+      # Bypass the symlink bug by mounting to the true config path
+      - ./certs/dashboard.pem:/usr/share/wazuh-dashboard/config/certs/dashboard.pem:ro
+      - ./certs/dashboard-key.pem:/usr/share/wazuh-dashboard/config/certs/dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/config/certs/root-ca.pem:ro
     depends_on:
       - wazuh-indexer
       - wazuh-manager
