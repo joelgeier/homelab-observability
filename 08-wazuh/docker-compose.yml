@@ -149,7 +149,7 @@ services:
       - API_PASSWORD=MyS3cr37P450r.*-  # TODO: Change after deployment!
     
     # ── Volume Mounts ───────────────────────────────────────────────────────
-volumes:
+    volumes:
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
