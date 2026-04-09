@@ -74,29 +74,43 @@ version: '3.8'
 
 services:
   # ══════════════════════════════════════════════════════════════════════════
-  # Wazuh Indexer
+  # Wazuh Indexer - Data Storage & Search Engine
   # ══════════════════════════════════════════════════════════════════════════
   wazuh-indexer:
+    # ── Image Configuration ─────────────────────────────────────────────────
     image: wazuh/wazuh-indexer:4.11.2
     container_name: wazuh-indexer
     restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
+    # Internal use only - Manager and Dashboard connect to 9200
+    # No external exposure needed
     ports:
       - "9200:9200"
+    
+    # ── Environment Variables ───────────────────────────────────────────────
     environment:
       - TZ=${TZ:-UTC}
-      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"  # Heap size (adjust based on RAM)
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - "DISABLE_INSTALL_DEMO_CONFIG=true"
       - plugins.security.ssl.http.enabled=true
       - plugins.security.ssl.transport.enabled=true
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
+      # Persistent data storage (alerts, events, indices)
       - wazuh-indexer-data:/var/lib/wazuh-indexer
-      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
+      
+      # SSL certificates (indexer expects them in /etc not /usr/share!)
+      - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
+      - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
+      - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
+      - ./certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
+      - ./certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
+    
+    # ── Resource Limits ─────────────────────────────────────────────────────
     ulimits:
       memlock:
         soft: -1
@@ -104,69 +118,100 @@ services:
       nofile:
         soft: 65536
         hard: 65536
+    
+    # ── Network Configuration ───────────────────────────────────────────────
     networks:
       - observability
 
   # ══════════════════════════════════════════════════════════════════════════
-  # Wazuh Manager
+  # Wazuh Manager - Security Event Analysis Engine
   # ══════════════════════════════════════════════════════════════════════════
   wazuh-manager:
+    # ── Image Configuration ─────────────────────────────────────────────────
     image: wazuh/wazuh-manager:4.11.2
     container_name: wazuh-manager
     restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
     ports:
-      - "1514:1514"
-      - "55000:55000"
+      - "1514:1514"  # Agent communication (STANDARD Wazuh agent port)
+      - "55000:55000"  # API & Agent registration
+    
+    # ── Environment Variables ───────────────────────────────────────────────
     environment:
       - TZ=${TZ:-UTC}
       - INDEXER_URL=https://wazuh-indexer:9200
       - INDEXER_USERNAME=admin
-      - INDEXER_PASSWORD=SecretPassword
+      - INDEXER_PASSWORD=SecretPassword  # TODO: Change after deployment!
       - FILEBEAT_SSL_VERIFICATION_MODE=none
       - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
       - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
       - SSL_KEY=/etc/ssl/filebeat-key.pem
       - API_USERNAME=wazuh-wui
-      - API_PASSWORD=MyS3cr37P450r.*-
+      - API_PASSWORD=MyS3cr37P450r.*-  # TODO: Change after deployment!
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
+      # Persistent manager data (rules, decoders, agent keys)
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
-      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
+      
+      # SSL certificates (for Filebeat -> Indexer communication)
+      - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
+      - ./certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
+    
+    # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
       - wazuh-indexer
+    
+    # ── Network Configuration ───────────────────────────────────────────────
     networks:
       - observability
 
   # ══════════════════════════════════════════════════════════════════════════
-  # Wazuh Dashboard
+  # Wazuh Dashboard - Web User Interface
   # ══════════════════════════════════════════════════════════════════════════
   wazuh-dashboard:
+    # ── Image Configuration ─────────────────────────────────────────────────
     image: wazuh/wazuh-dashboard:4.11.2
     container_name: wazuh-dashboard
     restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
     ports:
-      - "8443:5601"
+      - "8443:5601"  # HTTPS dashboard (remapped to avoid port 443 conflict)
+    
+    # ── Environment Variables ───────────────────────────────────────────────
     environment:
       - TZ=${TZ:-UTC}
       - INDEXER_USERNAME=admin
-      - INDEXER_PASSWORD=SecretPassword
+      - INDEXER_PASSWORD=SecretPassword  # TODO: Change after deployment!
       - WAZUH_API_URL=https://wazuh-manager
       - API_USERNAME=wazuh-wui
-      - API_PASSWORD=MyS3cr37P450r.*-
+      - API_PASSWORD=MyS3cr37P450r.*-  # TODO: Change after deployment!
       - DASHBOARD_USERNAME=kibanaserver
-      - DASHBOARD_PASSWORD=kibanaserver
+      - DASHBOARD_PASSWORD=kibanaserver  # TODO: Change after deployment!
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
-      - /home/labadmin/homelab-observability/08-wazuh/certs/dashboard.pem:/usr/share/wazuh-dashboard/config/certs/dashboard.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/dashboard-key.pem:/usr/share/wazuh-dashboard/config/certs/dashboard-key.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/usr/share/wazuh-dashboard/config/certs/root-ca.pem:ro
+      # SSL certificates (dashboard expects them in /etc not /usr/share!)
+      - ./certs/dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
+      - ./certs/dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/etc/wazuh-dashboard/certs/root-ca.pem:ro
+    
+    # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
       - wazuh-indexer
       - wazuh-manager
+    
+    # ── Network Configuration ───────────────────────────────────────────────
     networks:
       - observability
+    
+    # ── Health Check ────────────────────────────────────────────────────────
+    # Note: Dashboard takes ~1-2 minutes to fully start (wait for Indexer)
     healthcheck:
       test: ["CMD-SHELL", "curl -f https://localhost:5601/api/status || exit 1"]
       interval: 30s
@@ -175,16 +220,26 @@ services:
       start_period: 90s
 
 # ══════════════════════════════════════════════════════════════════════════
-# Named Volumes
+# Named Volumes - Data Persistence
+# ══════════════════════════════════════════════════════════════════════════
+# Note: SSL certificates are mounted from ./certs/ directory (not volumes)
 # ══════════════════════════════════════════════════════════════════════════
 volumes:
+  # Wazuh Indexer volumes
   wazuh-indexer-data:
-  wazuh-indexer-conf: # Added
+    driver: local
+  
+  # Wazuh Manager volumes
   wazuh-manager-data:
+    driver: local
   wazuh-manager-logs:
+    driver: local
   wazuh-manager-etc:
-  wazuh-dashboard-config: # Added
+    driver: local
 
+# ══════════════════════════════════════════════════════════════════════════
+# Networks
+# ══════════════════════════════════════════════════════════════════════════
 networks:
   observability:
     external: true
