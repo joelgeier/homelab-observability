@@ -100,12 +100,15 @@ services:
     
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
+      # Persistent data storage (alerts, events, indices)
       - wazuh-indexer-data:/var/lib/wazuh-indexer
-      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
+      
+      # SSL certificates (indexer expects them in /etc not /usr/share!)
+      - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
+      - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
+      - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
+      - ./certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
+      - ./certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
     
     # ── Resource Limits ─────────────────────────────────────────────────────
     ulimits:
@@ -149,12 +152,15 @@ services:
     
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
+      # Persistent manager data (rules, decoders, agent keys)
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
-      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
+      
+      # SSL certificates (for Filebeat -> Indexer communication)
+      - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
+      - ./certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -190,9 +196,10 @@ services:
     
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
-      - /home/labadmin/homelab-observability/08-wazuh/certs/dashboard.pem:/usr/share/wazuh-dashboard/config/certs/dashboard.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/dashboard-key.pem:/usr/share/wazuh-dashboard/config/certs/dashboard-key.pem:ro
-      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/usr/share/wazuh-dashboard/config/certs/root-ca.pem:ro
+      # SSL certificates (dashboard expects them in /etc/wazuh-dashboard/certs/)
+      - ./certs/dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
+      - ./certs/dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/etc/wazuh-dashboard/certs/root-ca.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
