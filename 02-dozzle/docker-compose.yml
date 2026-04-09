@@ -1,52 +1,95 @@
-  # ────────────────────────────────────────────────────────────────────────────
-  # DOZZLE — real-time container log viewer
-  #
-  # Streams logs live from Docker daemon — no persistent data directory needed.
-  # Read-only Docker socket — cannot start, stop, or modify containers.
-  #
-  # ⚠ No built-in authentication. Access currently restricted to tailnet.
-  # Enable Authentik forward auth during security hardening phase.
-  # ────────────────────────────────────────────────────────────────────────────
+# ============================================================================
+# Dozzle - Real-time Docker Container Log Viewer
+# ============================================================================
+# Version:       1.0.0
+# Last Updated:  2026-04-09
+# Purpose:       Monitor logs from all containers in homelab-observability stack
+# Web UI:        http://labhost00:8888
+# Data Location: None (stateless - reads directly from Docker socket)
+# Dependencies:  Docker daemon
+# Documentation: https://dozzle.dev/guide/what-is-dozzle
+# ============================================================================
+# Changelog:
+# 1.0.0 (2026-04-09) - Initial deployment
+#   - Dozzle v8.10.2
+#   - Read-only Docker socket mount
+#   - Port 8080 (no conflicts)
+#   - Health check added
+#   - Authentication disabled (Tailscale network only)
+# ============================================================================
+# Security Notes:
+# - Docker socket is mounted READ-ONLY (cannot start/stop containers)
+# - No built-in authentication in this config (Tailscale network provides access control)
+# - Consider enabling DOZZLE auth or adding Traefik + Authentik during security hardening
+# ============================================================================
+
+services:
   dozzle:
-    image: amir20/dozzle:latest
-    container_name: dozzle
+    # ── Image Configuration ───────────────────────────────────────
+    image: amir20/dozzle:v8.10.2  # Pinned version - update periodically
+    container_name: observability-dozzle
     restart: unless-stopped
-
-    networks:
-      - traefik-public
-
+    
+    # ── Port Mapping ──────────────────────────────────────────────
+    ports:
+      - "8888:8080"  # Web UI - real-time log viewer (8888 avoids 8080 conflicts)
+    
+    # ── Volume Mounts ─────────────────────────────────────────────
     volumes:
+      # Read-only Docker socket - Dozzle can ONLY read logs, not modify containers
       - /var/run/docker.sock:/var/run/docker.sock:ro
-
+    
+    # ── Environment Variables ─────────────────────────────────────
     environment:
       - TZ=${TZ:-UTC}
-      # Uncomment to enable Dozzle's own simple auth:
+      
+      # Optional: Enable Dozzle's built-in authentication
+      # Uncomment these and add to .env file:
       # - DOZZLE_USERNAME=${DOZZLE_USERNAME}
       # - DOZZLE_PASSWORD=${DOZZLE_PASSWORD}
-      # - DOZZLE_KEY=${DOZZLE_KEY}
-      # Uncomment to restrict visible containers:
-      # - DOZZLE_FILTER=status=running
+      # - DOZZLE_KEY=${DOZZLE_KEY}  # Secret key for session encryption
+      
+      # Optional: Filter visible containers
+      # Examples:
+      # - DOZZLE_FILTER=status=running           # Only show running containers
+      # - DOZZLE_FILTER=name=observability-*     # Only show observability stack
+      # - DOZZLE_FILTER=label=monitoring=true    # Only containers with this label
+    
+    # ── Health Check ──────────────────────────────────────────────
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # ── Network Configuration ─────────────────────────────────────
+    # Using default bridge network - no custom network needed
+    # Dozzle only needs access to Docker socket, not other containers
+    
+    # ── Future: Traefik Integration ───────────────────────────────
+    # Uncomment when adding reverse proxy:
+    # labels:
+    #   - "traefik.enable=true"
+    #   - "traefik.http.routers.dozzle.rule=Host(`logs.labhost00.jg-labs.dev`)"
+    #   - "traefik.http.routers.dozzle.entrypoints=websecure"
+    #   - "traefik.http.routers.dozzle.tls=true"
+    #   - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+    #   # Add Authentik forward auth:
+    #   - "traefik.http.routers.dozzle.middlewares=authentik@docker"
 
-    # Uncomment to expose directly for dev/debug (bypasses Traefik):
-    # ports:
-    #   - "8082:8080"
-
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=traefik-public"
-
-      # — Internal router —
-      - "traefik.http.routers.dozzle-internal.rule=Header(`X-Proxy-Target`, `logs.${DOMAIN}`)"
-      - "traefik.http.routers.dozzle-internal.entrypoints=webinternal"
-      - "traefik.http.routers.dozzle-internal.service=dozzle-internal-svc"
-      - "traefik.http.services.dozzle-internal-svc.loadbalancer.server.port=8080"
-
-      # — Secure router —
-      - "traefik.http.routers.dozzle-secure.rule=Host(`logs.${DOMAIN}`)"
-      - "traefik.http.routers.dozzle-secure.entrypoints=websecure"
-      - "traefik.http.routers.dozzle-secure.service=dozzle-secure-svc"
-      - "traefik.http.routers.dozzle-secure.tls=true"
-      - "traefik.http.services.dozzle-secure-svc.loadbalancer.server.port=8080"
-
-      # FUTURE: Authentik SSO — recommended, log access is sensitive:
-      # - "traefik.http.routers.dozzle-secure.middlewares=authentik@docker"
+# ============================================================================
+# Deployment Instructions:
+# ============================================================================
+# 1. Ensure Docker is running: docker ps
+# 2. Deploy: docker-compose up -d
+# 3. Verify: docker-compose ps
+# 4. Access: http://labhost00:8080
+# 5. Check logs: docker-compose logs -f dozzle
+#
+# To update to latest version:
+# 1. Check for updates: https://github.com/amir20/dozzle/releases
+# 2. Update image tag above
+# 3. Pull new image: docker-compose pull
+# 4. Recreate container: docker-compose up -d
+# ============================================================================
