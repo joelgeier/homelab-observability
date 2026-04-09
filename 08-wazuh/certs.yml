@@ -1,15 +1,15 @@
 nodes:
   # Wazuh indexer nodes
   indexer:
-    - name: wazuh-indexer
-      ip: wazuh-indexer
+    - name: node-1
+      ip: 127.0.0.1
   
   # Wazuh server nodes
   server:
-    - name: wazuh-manager
-      ip: wazuh-manager
+    - name: wazuh-1
+      ip: 127.0.0.1
   
   # Wazuh dashboard nodes
   dashboard:
-    - name: wazuh-dashboard
-      ip: wazuh-dashboard
+    - name: dashboard
+      ip: 127.0.0.1
