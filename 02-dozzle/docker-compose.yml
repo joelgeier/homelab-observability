@@ -27,7 +27,7 @@ services:
   dozzle:
     # ── Image Configuration ───────────────────────────────────────
     image: amir20/dozzle:v8.10.2  # Pinned version - update periodically
-    container_name: observability-dozzle
+    container_name: dozzle
     restart: unless-stopped
     
     # ── Port Mapping ──────────────────────────────────────────────
@@ -84,7 +84,7 @@ services:
 # 1. Ensure Docker is running: docker ps
 # 2. Deploy: docker-compose up -d
 # 3. Verify: docker-compose ps
-# 4. Access: http://labhost00:8080
+# 4. Access:  http://labhost00.taild6529.ts.net:8888 
 # 5. Check logs: docker-compose logs -f dozzle
 #
 # To update to latest version:
