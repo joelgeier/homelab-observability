@@ -92,7 +92,6 @@ services:
       - plugins.security.ssl.transport.enabled=true
     volumes:
       - wazuh-indexer-data:/var/lib/wazuh-indexer
-      - wazuh-indexer-conf:/etc/wazuh-indexer # ADDED to fix permissions
       - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
       - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
       - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
@@ -130,6 +129,7 @@ services:
       - API_USERNAME=wazuh-wui
       - API_PASSWORD=MyS3cr37P450r.*-
     volumes:
+    volumes:
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
@@ -160,10 +160,11 @@ services:
       - DASHBOARD_USERNAME=kibanaserver
       - DASHBOARD_PASSWORD=kibanaserver
     volumes:
-      - wazuh-dashboard-config:/etc/wazuh-dashboard # ADDED to fix EACCES
       - ./certs/dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
       - ./certs/dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
       - ./certs/root-ca.pem:/etc/wazuh-dashboard/certs/root-ca.pem:ro
+      # ADD THIS LINE to bypass the permissions error:
+      - ./certs/opensearch_dashboards.keystore:/etc/wazuh-dashboard/opensearch_dashboards.keystore
     depends_on:
       - wazuh-indexer
       - wazuh-manager
