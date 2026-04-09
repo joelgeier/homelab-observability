@@ -23,6 +23,7 @@
 | `PORTS.md` | 1.0.0 | ✅ Ready | Port assignments (Phase 0-IV) |
 | `DOCKER-COMPOSE-CHECKLIST.md` | 1.0.0 | ✅ Ready | Compose file refactoring checklist |
 | `TRAEFIK-CONFIGURATION.md` | 1.0.0 | ✅ Ready | Complete Traefik router creation & deployment guide |
+| `TAILSCALE-NETWORK.md` | 1.0.0 | ✅ Ready | Tailscale VPN network configuration & URL standards |
 | `CONSOLES.md` | - | ⚠️ Check | Console access documentation |
 | `networking.md` | - | ⚠️ Check | Network configuration notes |
 
@@ -55,7 +56,7 @@
 
 ### Phase 0: Foundation
 
-#### 01-dozzle (Real-time Container Logs)
+#### 02-dozzle (Real-time Container Logs)
 | File | Version | Status | Description |
 |------|---------|--------|-------------|
 | `docker-compose.yml` | 1.0.0 | ✅ Ready | Dozzle v8.10.2 deployment |
@@ -63,7 +64,7 @@
 
 **Traefik Router:** See `/traefik-routers/router-labhost00-dozzle.yml`  
 **Deployment Status:** Ready for deployment  
-**Port:** 8080  
+**Port:** 8888 (avoiding 8080 conflicts)  
 **Dependencies:** Docker daemon
 
 ---
@@ -142,12 +143,19 @@
 
 ---
 
-#### 08-wazuh (Security Monitoring)
+#### 08-wazuh (Security Monitoring - SIEM/XDR)
 | File | Version | Status | Description |
 |------|---------|--------|-------------|
-| `README.md` | - | ⚠️ Placeholder | Needs compose file |
+| `README.md` | 1.0.0 | ✅ Ready | Comprehensive Wazuh deployment guide |
 
-**Status:** ⚠️ Not ready
+**Deployment Method:** Official wazuh-docker repository (single-node)  
+**Access:** `https://labhost00.taild6529.ts.net:8443`  
+**Components:** Manager (1515), Indexer (9200), Dashboard (8443)  
+**Agent Deployment:** Instructions for labhost01 included  
+**Dependencies:** Docker, vm.max_map_count=262144  
+**Sources:** Official Wazuh docs + homelab implementations (0x2A Security Blog)  
+**Use Cases:** Vulnerability scanning, FIM, log analysis, brute-force detection, Docker monitoring  
+**Status:** ✅ Ready for deployment
 
 ---
 
