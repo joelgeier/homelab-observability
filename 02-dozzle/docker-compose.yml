@@ -1,20 +1,22 @@
 # ============================================================================
 # Dozzle - Real-time Docker Container Log Viewer
 # ============================================================================
-# Version:       1.0.0
+# Version:       1.0.1
 # Last Updated:  2026-04-09
 # Purpose:       Monitor logs from all containers in homelab-observability stack
-# Web UI:        http://labhost00:8888
+# Web UI:        http://labhost00.taild6529.ts.net:8888
 # Data Location: None (stateless - reads directly from Docker socket)
 # Dependencies:  Docker daemon
 # Documentation: https://dozzle.dev/guide/what-is-dozzle
 # ============================================================================
 # Changelog:
+# 1.0.1 (2026-04-09) - Health check fix
+#   - Removed health check (wget not available in Dozzle image)
+#   - Container status still monitored by Docker
 # 1.0.0 (2026-04-09) - Initial deployment
 #   - Dozzle v8.10.2
 #   - Read-only Docker socket mount
-#   - Port 8080 (no conflicts)
-#   - Health check added
+#   - Port 8888 (avoids 8080 conflicts)
 #   - Authentication disabled (Tailscale network only)
 # ============================================================================
 # Security Notes:
@@ -55,14 +57,6 @@ services:
       # - DOZZLE_FILTER=name=observability-*     # Only show observability stack
       # - DOZZLE_FILTER=label=monitoring=true    # Only containers with this label
     
-    # ── Health Check ──────────────────────────────────────────────
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-    
     # ── Network Configuration ─────────────────────────────────────
     # Using default bridge network - no custom network needed
     # Dozzle only needs access to Docker socket, not other containers
@@ -74,7 +68,7 @@ services:
     #   - "traefik.http.routers.dozzle.rule=Host(`logs.labhost00.jg-labs.dev`)"
     #   - "traefik.http.routers.dozzle.entrypoints=websecure"
     #   - "traefik.http.routers.dozzle.tls=true"
-    #   - "traefik.http.services.dozzle.loadbalancer.server.port=8080"
+    #   - "traefik.http.services.dozzle.loadbalancer.server.port=8888"
     #   # Add Authentik forward auth:
     #   - "traefik.http.routers.dozzle.middlewares=authentik@docker"
 
@@ -84,7 +78,7 @@ services:
 # 1. Ensure Docker is running: docker ps
 # 2. Deploy: docker-compose up -d
 # 3. Verify: docker-compose ps
-# 4. Access:  http://labhost00.taild6529.ts.net:8888 
+# 4. Access: http://labhost00.taild6529.ts.net:8888
 # 5. Check logs: docker-compose logs -f dozzle
 #
 # To update to latest version:
