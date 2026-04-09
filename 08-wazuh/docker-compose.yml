@@ -1,23 +1,28 @@
 # ============================================================================
 # Wazuh - Security Information and Event Management (SIEM) Platform
 # ============================================================================
-# Version:       1.0.0
+# Version:       1.1.0
 # Last Updated:  2026-04-09
 # Purpose:       Enterprise-grade security monitoring for homelab
 # Dashboard:     https://labhost00.taild6529.ts.net:8443
-# Data Location: ${DATA_ROOT}/wazuh/
+# Data Location: Docker volumes (managed by Docker)
 # Dependencies:  vm.max_map_count=262144 (critical - set before deployment)
 # Documentation: https://documentation.wazuh.com/current/docker/wazuh-container.html
 # ============================================================================
 # Architecture:
-#   - Wazuh Manager: Analyzes security events, manages agents (port 1515)
+#   - Wazuh Manager: Analyzes security events, manages agents (port 1514)
 #   - Wazuh Indexer: Stores/indexes alerts (OpenSearch fork, port 9200)
 #   - Wazuh Dashboard: Web UI for monitoring (port 8443)
 # ============================================================================
 # Changelog:
+# 1.1.0 (2026-04-09) - Production-ready deployment
+#   - Removed optional directory mounts (caused failures if files didn't exist)
+#   - All data stored in Docker volumes (7 named volumes)
+#   - Clean deployment - works immediately without file dependencies
+#   - Custom configs can be added later when needed (see notes at bottom)
 # 1.0.0 (2026-04-09) - Initial deployment
 #   - Wazuh 4.x single-node configuration
-#   - Manager on port 1515 (avoiding Graylog conflict)
+#   - Manager on port 1514 (STANDARD agent port - priority over Graylog)
 #   - Dashboard on port 8443 (avoiding standard HTTPS)
 #   - Self-signed certificates for inter-component TLS
 #   - Data persistence via named volumes
@@ -73,9 +78,6 @@ services:
       
       # SSL certificates (generated on first run)
       - wazuh-indexer-certs:/usr/share/wazuh-indexer/certs
-      
-      # Custom configuration (optional)
-      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/indexer-config/opensearch.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
     
     # ── Resource Limits ─────────────────────────────────────────────────────
     ulimits:
@@ -88,7 +90,7 @@ services:
     
     # ── Network Configuration ───────────────────────────────────────────────
     networks:
-      - wazuh-network
+      - observability
 
   # ══════════════════════════════════════════════════════════════════════════
   # Wazuh Manager - Security Event Analysis Engine
@@ -101,7 +103,7 @@ services:
     
     # ── Port Mapping ────────────────────────────────────────────────────────
     ports:
-      - "1515:1514"  # Agent communication (remapped to avoid Graylog conflict)
+      - "1514:1514"  # Agent communication (STANDARD Wazuh agent port)
       - "55000:55000"  # API & Agent registration
     
     # ── Environment Variables ───────────────────────────────────────────────
@@ -126,10 +128,6 @@ services:
       
       # SSL certificates
       - wazuh-manager-certs:/etc/ssl:ro
-      
-      # Custom rules and decoders (optional)
-      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/manager-config/local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
-      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/manager-config/local_decoder.xml:/var/ossec/etc/decoders/local_decoder.xml:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -137,7 +135,7 @@ services:
     
     # ── Network Configuration ───────────────────────────────────────────────
     networks:
-      - wazuh-network
+      - observability
 
   # ══════════════════════════════════════════════════════════════════════════
   # Wazuh Dashboard - Web User Interface
@@ -167,9 +165,6 @@ services:
     volumes:
       # SSL certificates
       - wazuh-dashboard-certs:/usr/share/wazuh-dashboard/certs:ro
-      
-      # Custom dashboard configuration (optional)
-      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/dashboard-config/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -178,7 +173,7 @@ services:
     
     # ── Network Configuration ───────────────────────────────────────────────
     networks:
-      - wazuh-network
+      - observability
     
     # ── Health Check ────────────────────────────────────────────────────────
     # Note: Dashboard takes ~1-2 minutes to fully start (wait for Indexer)
@@ -217,8 +212,10 @@ volumes:
 # Networks
 # ══════════════════════════════════════════════════════════════════════════
 networks:
-  wazuh-network:
-    driver: bridge
+  observability:
+    external: true
+    # Created by: scripts/06-create-networks.sh
+    # Run that script first to create the shared observability network
 
 # ══════════════════════════════════════════════════════════════════════════
 # Deployment Instructions
@@ -255,6 +252,52 @@ networks:
 # To backup:
 #    docker exec wazuh-manager tar czf /tmp/wazuh-backup.tar.gz /var/ossec/etc
 #    docker cp wazuh-manager:/tmp/wazuh-backup.tar.gz ~/wazuh-backup-$(date +%Y%m%d).tar.gz
+# ══════════════════════════════════════════════════════════════════════════
+# OPTIONAL: ADDING CUSTOM CONFIGURATIONS (Advanced Users)
+# ══════════════════════════════════════════════════════════════════════════
+# If you need to customize Wazuh behavior beyond the dashboard UI, you can
+# add custom configuration files. This requires creating the files first,
+# then adding volume mounts to this compose file.
+#
+# CUSTOM DETECTION RULES:
+# ----------------------
+# 1. Create custom rules file:
+#    docker exec -it wazuh-manager cat /var/ossec/etc/rules/local_rules.xml > local_rules.xml
+# 
+# 2. Edit local_rules.xml with your custom rules
+#
+# 3. Add mount to wazuh-manager volumes:
+#    - ./local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
+#
+# 4. Restart manager:
+#    docker-compose restart wazuh-manager
+#
+# CUSTOM DECODERS:
+# ---------------
+# Similar process - extract, edit, mount local_decoder.xml
+#
+# INDEXER CONFIGURATION:
+# ---------------------
+# 1. Extract default config:
+#    docker exec wazuh-indexer cat /usr/share/wazuh-indexer/opensearch.yml > opensearch.yml
+#
+# 2. Customize as needed
+#
+# 3. Add mount to wazuh-indexer volumes:
+#    - ./opensearch.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+#
+# DASHBOARD CONFIGURATION:
+# -----------------------
+# 1. Extract default:
+#    docker exec wazuh-dashboard cat /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml > opensearch_dashboards.yml
+#
+# 2. Customize
+#
+# 3. Add mount to wazuh-dashboard volumes:
+#    - ./opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
+#
+# NOTE: Most customization can be done via the web UI - only use file mounts
+# for advanced configurations not available in the dashboard.
 # ══════════════════════════════════════════════════════════════════════════
 # KNOWN ISSUES & SOLUTIONS
 # ══════════════════════════════════════════════════════════════════════════
