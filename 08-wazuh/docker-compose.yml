@@ -1,12 +1,14 @@
 # ============================================================================
 # Wazuh - Security Information and Event Management (SIEM) Platform
 # ============================================================================
-# Version:       1.1.0
+# Version:       1.2.0
 # Last Updated:  2026-04-09
 # Purpose:       Enterprise-grade security monitoring for homelab
 # Dashboard:     https://labhost00.taild6529.ts.net:8443
-# Data Location: Docker volumes (managed by Docker)
-# Dependencies:  vm.max_map_count=262144 (critical - set before deployment)
+# Data Location: Docker volumes + local certs directory
+# Dependencies:  
+#   - vm.max_map_count=262144 (critical - set before deployment)
+#   - SSL certificates (run generate-certs.yml first)
 # Documentation: https://documentation.wazuh.com/current/docker/wazuh-container.html
 # ============================================================================
 # Architecture:
@@ -15,6 +17,11 @@
 #   - Wazuh Dashboard: Web UI for monitoring (port 8443)
 # ============================================================================
 # Changelog:
+# 1.2.0 (2026-04-09) - SSL certificate integration
+#   - Added certificate mounts from local ./certs/ directory
+#   - Certificates generated via generate-certs.yml
+#   - Proper SSL paths for all components
+#   - Fixes crash-loop issues from missing certs
 # 1.1.0 (2026-04-09) - Production-ready deployment
 #   - Removed optional directory mounts (caused failures if files didn't exist)
 #   - All data stored in Docker volumes (7 named volumes)
@@ -29,7 +36,7 @@
 # ============================================================================
 # CRITICAL PRE-DEPLOYMENT:
 # ============================================================================
-# REQUIRED: Set vm.max_map_count on Docker host
+# STEP 1: Set vm.max_map_count on Docker host
 #
 # On labhost00:
 #   echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
@@ -41,6 +48,22 @@
 #
 # Why: Wazuh Indexer (OpenSearch) requires high virtual memory areas.
 #      Default Linux limit (65530) will cause Indexer to fail at startup.
+#
+# ============================================================================
+# STEP 2: Generate SSL/TLS Certificates
+#
+# In this directory (08-wazuh):
+#   docker-compose -f generate-certs.yml run --rm generator
+#
+# This creates certificates in ./certs/ directory:
+#   - root-ca.pem (Certificate Authority)
+#   - wazuh-indexer.pem, wazuh-indexer-key.pem
+#   - wazuh-manager.pem, wazuh-manager-key.pem
+#   - wazuh-dashboard.pem, wazuh-dashboard-key.pem
+#   - admin.pem, admin-key.pem
+#
+# Why: Wazuh components require SSL certificates for secure communication.
+#      Without these, containers will crash-loop with certificate errors.
 # ============================================================================
 
 version: '3.8'
@@ -76,8 +99,12 @@ services:
       # Persistent data storage (alerts, events, indices)
       - wazuh-indexer-data:/var/lib/wazuh-indexer
       
-      # SSL certificates (generated on first run)
-      - wazuh-indexer-certs:/usr/share/wazuh-indexer/certs
+      # SSL certificates (generated via generate-certs.yml)
+      - ./certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
+      - ./certs/wazuh-indexer.pem:/usr/share/wazuh-indexer/certs/indexer.pem:ro
+      - ./certs/wazuh-indexer-key.pem:/usr/share/wazuh-indexer/certs/indexer-key.pem:ro
+      - ./certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
+      - ./certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
     
     # ── Resource Limits ─────────────────────────────────────────────────────
     ulimits:
@@ -126,8 +153,10 @@ services:
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
       
-      # SSL certificates
-      - wazuh-manager-certs:/etc/ssl:ro
+      # SSL certificates (for Filebeat -> Indexer communication)
+      - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
+      - ./certs/wazuh-manager.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/wazuh-manager-key.pem:/etc/ssl/filebeat-key.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -164,7 +193,9 @@ services:
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
       # SSL certificates
-      - wazuh-dashboard-certs:/usr/share/wazuh-dashboard/certs:ro
+      - ./certs/wazuh-dashboard.pem:/usr/share/wazuh-dashboard/certs/dashboard.pem:ro
+      - ./certs/wazuh-dashboard-key.pem:/usr/share/wazuh-dashboard/certs/dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -187,11 +218,11 @@ services:
 # ══════════════════════════════════════════════════════════════════════════
 # Named Volumes - Data Persistence
 # ══════════════════════════════════════════════════════════════════════════
+# Note: SSL certificates are mounted from ./certs/ directory (not volumes)
+# ══════════════════════════════════════════════════════════════════════════
 volumes:
   # Wazuh Indexer volumes
   wazuh-indexer-data:
-    driver: local
-  wazuh-indexer-certs:
     driver: local
   
   # Wazuh Manager volumes
@@ -200,12 +231,6 @@ volumes:
   wazuh-manager-logs:
     driver: local
   wazuh-manager-etc:
-    driver: local
-  wazuh-manager-certs:
-    driver: local
-  
-  # Wazuh Dashboard volumes
-  wazuh-dashboard-certs:
     driver: local
 
 # ══════════════════════════════════════════════════════════════════════════
@@ -224,25 +249,32 @@ networks:
 #    echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
 #    sudo sysctl -p
 #
-# 2. Create data directory (if using custom DATA_ROOT)
-#    sudo mkdir -p /mnt/data/homelab-observability/wazuh
+# 2. CRITICAL: Generate SSL certificates
+#    cd ~/homelab-observability/08-wazuh
+#    docker-compose -f generate-certs.yml run --rm generator
+#    # Creates certificates in ./certs/ directory
 #
-# 3. Deploy stack
+# 3. Create observability network (if not already created)
+#    cd ~/homelab-observability
+#    bash scripts/06-create-networks.sh
+#
+# 4. Deploy Wazuh stack
+#    cd ~/homelab-observability/08-wazuh
 #    docker-compose up -d
 #
-# 4. Monitor startup (Indexer takes ~1 minute)
+# 5. Monitor startup (~1-2 minutes)
 #    docker-compose logs -f wazuh-dashboard
 #    # Wait for: "Server running at https://0.0.0.0:5601"
 #
-# 5. Access dashboard
+# 6. Access dashboard
 #    https://labhost00.taild6529.ts.net:8443
 #    Username: admin
 #    Password: SecretPassword
 #
-# 6. SECURITY: Change default passwords immediately!
+# 7. SECURITY: Change default passwords immediately!
 #    See README.md for password change instructions
 #
-# 7. Install agent on labhost01
+# 8. Install agent on labhost01
 #    See README.md "Installing Wazuh Agent" section
 #
 # To update:
@@ -301,6 +333,18 @@ networks:
 # ══════════════════════════════════════════════════════════════════════════
 # KNOWN ISSUES & SOLUTIONS
 # ══════════════════════════════════════════════════════════════════════════
+# Issue: Containers crash-loop with "ENOENT: no such file or directory" errors
+#   Cause: SSL certificates not generated before deployment
+#   Solution: Run certificate generator first:
+#     docker-compose -f generate-certs.yml run --rm generator
+#
+# Issue: Indexer fails with "access denied" certificate errors
+#   Cause: Certificate files missing or incorrect permissions
+#   Solution: Regenerate certificates and restart:
+#     rm -rf certs/
+#     docker-compose -f generate-certs.yml run --rm generator
+#     docker-compose down && docker-compose up -d
+#
 # Issue: Dashboard shows "Failed to connect to Wazuh indexer"
 #   Cause: Indexer still starting (takes ~60 seconds)
 #   Solution: Wait 1-2 minutes, refresh browser
@@ -312,8 +356,4 @@ networks:
 # Issue: High memory usage
 #   Cause: Indexer Java heap size too large for your system
 #   Solution: Reduce OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g (for 4GB RAM host)
-#
-# Issue: Containers restart loop
-#   Cause: Certificate generation failed or missing
-#   Solution: Remove volumes and recreate: docker-compose down -v && docker-compose up -d
 # ══════════════════════════════════════════════════════════════════════════
