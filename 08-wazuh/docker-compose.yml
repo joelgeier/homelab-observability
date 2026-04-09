@@ -101,10 +101,9 @@ services:
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
       - wazuh-indexer-data:/var/lib/wazuh-indexer
-      # Maps the generated 'wazuh-indexer' certs to the 'indexer' names it expects inside
       - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
-      - ./certs/wazuh-indexer.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
-      - ./certs/wazuh-indexer-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
+      - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
+      - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
       - ./certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
       - ./certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
     
@@ -153,10 +152,9 @@ services:
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
-      # Maps the generated 'wazuh-manager' certs to the 'filebeat' names it expects inside
       - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
-      - ./certs/wazuh-manager.pem:/etc/ssl/filebeat.pem:ro
-      - ./certs/wazuh-manager-key.pem:/etc/ssl/filebeat-key.pem:ro
+      - ./certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -193,8 +191,8 @@ services:
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
       # Maps the generated 'wazuh-dashboard' certs to the 'dashboard' names it expects inside
-      - ./certs/wazuh-dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
-      - ./certs/wazuh-dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
+      - ./certs/dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
+      - ./certs/dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
       - ./certs/root-ca.pem:/etc/wazuh-dashboard/certs/root-ca.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
