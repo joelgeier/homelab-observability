@@ -1,0 +1,276 @@
+# ============================================================================
+# Wazuh - Security Information and Event Management (SIEM) Platform
+# ============================================================================
+# Version:       1.0.0
+# Last Updated:  2026-04-09
+# Purpose:       Enterprise-grade security monitoring for homelab
+# Dashboard:     https://labhost00.taild6529.ts.net:8443
+# Data Location: ${DATA_ROOT}/wazuh/
+# Dependencies:  vm.max_map_count=262144 (critical - set before deployment)
+# Documentation: https://documentation.wazuh.com/current/docker/wazuh-container.html
+# ============================================================================
+# Architecture:
+#   - Wazuh Manager: Analyzes security events, manages agents (port 1515)
+#   - Wazuh Indexer: Stores/indexes alerts (OpenSearch fork, port 9200)
+#   - Wazuh Dashboard: Web UI for monitoring (port 8443)
+# ============================================================================
+# Changelog:
+# 1.0.0 (2026-04-09) - Initial deployment
+#   - Wazuh 4.x single-node configuration
+#   - Manager on port 1515 (avoiding Graylog conflict)
+#   - Dashboard on port 8443 (avoiding standard HTTPS)
+#   - Self-signed certificates for inter-component TLS
+#   - Data persistence via named volumes
+# ============================================================================
+# CRITICAL PRE-DEPLOYMENT:
+# ============================================================================
+# REQUIRED: Set vm.max_map_count on Docker host
+#
+# On labhost00:
+#   echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+#   sudo sysctl -p
+#
+# Verify:
+#   sysctl vm.max_map_count
+#   # Should output: vm.max_map_count = 262144
+#
+# Why: Wazuh Indexer (OpenSearch) requires high virtual memory areas.
+#      Default Linux limit (65530) will cause Indexer to fail at startup.
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ══════════════════════════════════════════════════════════════════════════
+  # Wazuh Indexer - Data Storage & Search Engine
+  # ══════════════════════════════════════════════════════════════════════════
+  wazuh-indexer:
+    # ── Image Configuration ─────────────────────────────────────────────────
+    image: wazuh/wazuh-indexer:4.11.2
+    container_name: wazuh-indexer
+    restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
+    # Internal use only - Manager and Dashboard connect to 9200
+    # No external exposure needed
+    ports:
+      - "9200:9200"
+    
+    # ── Environment Variables ───────────────────────────────────────────────
+    environment:
+      - TZ=${TZ:-UTC}
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"  # Heap size (adjust based on RAM)
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - plugins.security.ssl.http.enabled=true
+      - plugins.security.ssl.transport.enabled=true
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
+    volumes:
+      # Persistent data storage (alerts, events, indices)
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      
+      # SSL certificates (generated on first run)
+      - wazuh-indexer-certs:/usr/share/wazuh-indexer/certs
+      
+      # Custom configuration (optional)
+      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/indexer-config/opensearch.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+    
+    # ── Resource Limits ─────────────────────────────────────────────────────
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    
+    # ── Network Configuration ───────────────────────────────────────────────
+    networks:
+      - wazuh-network
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Wazuh Manager - Security Event Analysis Engine
+  # ══════════════════════════════════════════════════════════════════════════
+  wazuh-manager:
+    # ── Image Configuration ─────────────────────────────────────────────────
+    image: wazuh/wazuh-manager:4.11.2
+    container_name: wazuh-manager
+    restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
+    ports:
+      - "1515:1514"  # Agent communication (remapped to avoid Graylog conflict)
+      - "55000:55000"  # API & Agent registration
+    
+    # ── Environment Variables ───────────────────────────────────────────────
+    environment:
+      - TZ=${TZ:-UTC}
+      - INDEXER_URL=https://wazuh-indexer:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=SecretPassword  # TODO: Change after deployment!
+      - FILEBEAT_SSL_VERIFICATION_MODE=none
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat-key.pem
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr37P450r.*-  # TODO: Change after deployment!
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
+    volumes:
+      # Persistent manager data (rules, decoders, agent keys)
+      - wazuh-manager-data:/var/ossec/data
+      - wazuh-manager-logs:/var/ossec/logs
+      - wazuh-manager-etc:/var/ossec/etc
+      
+      # SSL certificates
+      - wazuh-manager-certs:/etc/ssl:ro
+      
+      # Custom rules and decoders (optional)
+      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/manager-config/local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
+      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/manager-config/local_decoder.xml:/var/ossec/etc/decoders/local_decoder.xml:ro
+    
+    # ── Dependencies ────────────────────────────────────────────────────────
+    depends_on:
+      - wazuh-indexer
+    
+    # ── Network Configuration ───────────────────────────────────────────────
+    networks:
+      - wazuh-network
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Wazuh Dashboard - Web User Interface
+  # ══════════════════════════════════════════════════════════════════════════
+  wazuh-dashboard:
+    # ── Image Configuration ─────────────────────────────────────────────────
+    image: wazuh/wazuh-dashboard:4.11.2
+    container_name: wazuh-dashboard
+    restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
+    ports:
+      - "8443:5601"  # HTTPS dashboard (remapped to avoid port 443 conflict)
+    
+    # ── Environment Variables ───────────────────────────────────────────────
+    environment:
+      - TZ=${TZ:-UTC}
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=SecretPassword  # TODO: Change after deployment!
+      - WAZUH_API_URL=https://wazuh-manager
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr37P450r.*-  # TODO: Change after deployment!
+      - DASHBOARD_USERNAME=kibanaserver
+      - DASHBOARD_PASSWORD=kibanaserver  # TODO: Change after deployment!
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
+    volumes:
+      # SSL certificates
+      - wazuh-dashboard-certs:/usr/share/wazuh-dashboard/certs:ro
+      
+      # Custom dashboard configuration (optional)
+      - ${DATA_ROOT:-/mnt/data/homelab-observability}/wazuh/dashboard-config/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
+    
+    # ── Dependencies ────────────────────────────────────────────────────────
+    depends_on:
+      - wazuh-indexer
+      - wazuh-manager
+    
+    # ── Network Configuration ───────────────────────────────────────────────
+    networks:
+      - wazuh-network
+    
+    # ── Health Check ────────────────────────────────────────────────────────
+    # Note: Dashboard takes ~1-2 minutes to fully start (wait for Indexer)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f https://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+# ══════════════════════════════════════════════════════════════════════════
+# Named Volumes - Data Persistence
+# ══════════════════════════════════════════════════════════════════════════
+volumes:
+  # Wazuh Indexer volumes
+  wazuh-indexer-data:
+    driver: local
+  wazuh-indexer-certs:
+    driver: local
+  
+  # Wazuh Manager volumes
+  wazuh-manager-data:
+    driver: local
+  wazuh-manager-logs:
+    driver: local
+  wazuh-manager-etc:
+    driver: local
+  wazuh-manager-certs:
+    driver: local
+  
+  # Wazuh Dashboard volumes
+  wazuh-dashboard-certs:
+    driver: local
+
+# ══════════════════════════════════════════════════════════════════════════
+# Networks
+# ══════════════════════════════════════════════════════════════════════════
+networks:
+  wazuh-network:
+    driver: bridge
+
+# ══════════════════════════════════════════════════════════════════════════
+# Deployment Instructions
+# ══════════════════════════════════════════════════════════════════════════
+# 1. CRITICAL: Set vm.max_map_count on labhost00
+#    echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+#    sudo sysctl -p
+#
+# 2. Create data directory (if using custom DATA_ROOT)
+#    sudo mkdir -p /mnt/data/homelab-observability/wazuh
+#
+# 3. Deploy stack
+#    docker-compose up -d
+#
+# 4. Monitor startup (Indexer takes ~1 minute)
+#    docker-compose logs -f wazuh-dashboard
+#    # Wait for: "Server running at https://0.0.0.0:5601"
+#
+# 5. Access dashboard
+#    https://labhost00.taild6529.ts.net:8443
+#    Username: admin
+#    Password: SecretPassword
+#
+# 6. SECURITY: Change default passwords immediately!
+#    See README.md for password change instructions
+#
+# 7. Install agent on labhost01
+#    See README.md "Installing Wazuh Agent" section
+#
+# To update:
+#    docker-compose pull
+#    docker-compose up -d
+#
+# To backup:
+#    docker exec wazuh-manager tar czf /tmp/wazuh-backup.tar.gz /var/ossec/etc
+#    docker cp wazuh-manager:/tmp/wazuh-backup.tar.gz ~/wazuh-backup-$(date +%Y%m%d).tar.gz
+# ══════════════════════════════════════════════════════════════════════════
+# KNOWN ISSUES & SOLUTIONS
+# ══════════════════════════════════════════════════════════════════════════
+# Issue: Dashboard shows "Failed to connect to Wazuh indexer"
+#   Cause: Indexer still starting (takes ~60 seconds)
+#   Solution: Wait 1-2 minutes, refresh browser
+#
+# Issue: "vm_max_map_count too low" error
+#   Cause: Kernel parameter not set
+#   Solution: Run sysctl commands from CRITICAL PRE-DEPLOYMENT section
+#
+# Issue: High memory usage
+#   Cause: Indexer Java heap size too large for your system
+#   Solution: Reduce OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g (for 4GB RAM host)
+#
+# Issue: Containers restart loop
+#   Cause: Certificate generation failed or missing
+#   Solution: Remove volumes and recreate: docker-compose down -v && docker-compose up -d
+# ══════════════════════════════════════════════════════════════════════════
