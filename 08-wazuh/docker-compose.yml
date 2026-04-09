@@ -101,8 +101,8 @@ services:
       
       # SSL certificates (generated via generate-certs.yml)
       - ./certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
-      - ./certs/wazuh-indexer.pem:/usr/share/wazuh-indexer/certs/indexer.pem:ro
-      - ./certs/wazuh-indexer-key.pem:/usr/share/wazuh-indexer/certs/indexer-key.pem:ro
+      - ./certs/node-1.pem:/usr/share/wazuh-indexer/certs/indexer.pem:ro
+      - ./certs/node-1-key.pem:/usr/share/wazuh-indexer/certs/indexer-key.pem:ro
       - ./certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
       - ./certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
     
@@ -155,8 +155,8 @@ services:
       
       # SSL certificates (for Filebeat -> Indexer communication)
       - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
-      - ./certs/wazuh-manager.pem:/etc/ssl/filebeat.pem:ro
-      - ./certs/wazuh-manager-key.pem:/etc/ssl/filebeat-key.pem:ro
+      - ./certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
