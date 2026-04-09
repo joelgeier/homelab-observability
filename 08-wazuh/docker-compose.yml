@@ -92,11 +92,11 @@ services:
       - plugins.security.ssl.transport.enabled=true
     volumes:
       - wazuh-indexer-data:/var/lib/wazuh-indexer
-      - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
-      - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
-      - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
-      - ./certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
-      - ./certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
     ulimits:
       memlock:
         soft: -1
@@ -132,9 +132,9 @@ services:
       - wazuh-manager-data:/var/ossec/data
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
-      - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
-      - ./certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
-      - ./certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
     depends_on:
       - wazuh-indexer
     networks:
@@ -159,10 +159,9 @@ services:
       - DASHBOARD_USERNAME=kibanaserver
       - DASHBOARD_PASSWORD=kibanaserver
     volumes:
-      # Bypass the symlink bug by mounting to the true config path
-      - ./certs/dashboard.pem:/usr/share/wazuh-dashboard/config/certs/dashboard.pem:ro
-      - ./certs/dashboard-key.pem:/usr/share/wazuh-dashboard/config/certs/dashboard-key.pem:ro
-      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/config/certs/root-ca.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/dashboard.pem:/usr/share/wazuh-dashboard/config/certs/dashboard.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/dashboard-key.pem:/usr/share/wazuh-dashboard/config/certs/dashboard-key.pem:ro
+      - /home/labadmin/homelab-observability/08-wazuh/certs/root-ca.pem:/usr/share/wazuh-dashboard/config/certs/root-ca.pem:ro
     depends_on:
       - wazuh-indexer
       - wazuh-manager
