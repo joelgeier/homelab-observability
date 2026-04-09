@@ -1,0 +1,35 @@
+# ============================================================================
+# Wazuh Certificate Generator
+# ============================================================================
+# Purpose: Generate SSL/TLS certificates for Wazuh components
+# Usage:   docker-compose -f generate-certs.yml run --rm generator
+# Output:  Creates certificates in ./certs/ directory
+# ============================================================================
+
+version: '3.8'
+
+services:
+  generator:
+    image: wazuh/wazuh-certs-generator:0.0.4
+    hostname: wazuh-certs-generator
+    volumes:
+      - ./certs:/certificates/
+      - ./certs.yml:/config/certs.yml
+    environment:
+      - CERT_TOOL_VERSION=4.11
+
+# ============================================================================
+# USAGE INSTRUCTIONS
+# ============================================================================
+# 1. Ensure certs.yml exists in this directory (defines node names/IPs)
+# 2. Run: docker-compose -f generate-certs.yml run --rm generator
+# 3. Certificates will be created in ./certs/ directory
+# 4. Deploy main stack: docker-compose up -d
+#
+# Generated certificates:
+#   - admin.pem, admin-key.pem (admin client cert)
+#   - wazuh-indexer.pem, wazuh-indexer-key.pem (indexer node cert)
+#   - wazuh-manager.pem, wazuh-manager-key.pem (manager/filebeat cert)
+#   - wazuh-dashboard.pem, wazuh-dashboard-key.pem (dashboard cert)
+#   - root-ca.pem, root-ca.key (certificate authority)
+# ============================================================================
