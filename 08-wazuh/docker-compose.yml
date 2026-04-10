@@ -1,14 +1,15 @@
 # ============================================================================
 # Wazuh - Security Information and Event Management (SIEM) Platform
 # ============================================================================
-# Version:       1.2.3
-# Last Updated:  2026-04-09
+# Version:       1.2.4
+# Last Updated:  2026-04-10
 # Purpose:       Enterprise-grade security monitoring for homelab
 # Dashboard:     https://labhost00.taild6529.ts.net:8443
 # Data Location: Docker volumes + local certs directory
 # Dependencies:  
 #   - vm.max_map_count=262144 (critical - set before deployment)
 #   - SSL certificates (run generate-certs.yml first)
+#   - wazuh-certs volume (created manually with docker volume create)
 # Documentation: https://documentation.wazuh.com/current/docker/wazuh-container.html
 # ============================================================================
 # Architecture:
@@ -17,6 +18,11 @@
 #   - Wazuh Dashboard: Web UI for monitoring (port 8443)
 # ============================================================================
 # Changelog:
+# 1.2.4 (2026-04-10) - Java SecurityManager workaround with Docker volumes
+#   - Changed indexer certs from bind mounts to named volume (wazuh-certs)
+#   - Docker-managed volumes bypass Java SecurityManager file access restrictions
+#   - Certificates copied into volume during setup, not bind-mounted from host
+#   - Fixes "access denied FilePermission" errors despite correct ownership
 # 1.2.3 (2026-04-09) - Indexer certificate path FINAL fix
 #   - Indexer certs BACK to /etc/wazuh-indexer/certs/ (opensearch.yml hardcoded)
 #   - Verified by examining container's opensearch.yml configuration
@@ -111,12 +117,8 @@ services:
       # Persistent data storage (alerts, events, indices)
       - wazuh-indexer-data:/var/lib/wazuh-indexer
       
-      # SSL certificates (MUST be in /etc/ - hardcoded in opensearch.yml)
-      - ./certs/root-ca.pem:/etc/wazuh-indexer/certs/root-ca.pem:ro
-      - ./certs/node-1.pem:/etc/wazuh-indexer/certs/indexer.pem:ro
-      - ./certs/node-1-key.pem:/etc/wazuh-indexer/certs/indexer-key.pem:ro
-      - ./certs/admin.pem:/etc/wazuh-indexer/certs/admin.pem:ro
-      - ./certs/admin-key.pem:/etc/wazuh-indexer/certs/admin-key.pem:ro
+      # SSL certificates - using named volume to bypass Java SecurityManager restrictions
+      - wazuh-certs:/etc/wazuh-indexer/certs:ro
     
     # ── Resource Limits ─────────────────────────────────────────────────────
     ulimits:
@@ -244,6 +246,10 @@ volumes:
     driver: local
   wazuh-manager-etc:
     driver: local
+  
+  # SSL certificates (named volume bypasses Java SecurityManager restrictions)
+  wazuh-certs:
+    external: true  # Created manually: docker volume create wazuh-certs
 
 # ══════════════════════════════════════════════════════════════════════════
 # Networks
