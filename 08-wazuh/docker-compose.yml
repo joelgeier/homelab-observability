@@ -1,15 +1,15 @@
 # ============================================================================
 # Wazuh - Security Information and Event Management (SIEM) Platform
 # ============================================================================
-# Version:       1.2.4
+# Version:       1.2.5
 # Last Updated:  2026-04-10
 # Purpose:       Enterprise-grade security monitoring for homelab
 # Dashboard:     https://labhost00.taild6529.ts.net:8443
-# Data Location: Docker volumes + local certs directory
+# Data Location: Docker volumes (no bind mounts for certs)
 # Dependencies:  
 #   - vm.max_map_count=262144 (critical - set before deployment)
 #   - SSL certificates (run generate-certs.yml first)
-#   - wazuh-certs volume (created manually with docker volume create)
+#   - Three cert volumes created manually (see deployment steps)
 # Documentation: https://documentation.wazuh.com/current/docker/wazuh-container.html
 # ============================================================================
 # Architecture:
@@ -18,6 +18,13 @@
 #   - Wazuh Dashboard: Web UI for monitoring (port 8443)
 # ============================================================================
 # Changelog:
+# 1.2.5 (2026-04-10) - Comprehensive volume fix for ALL components
+#   - ALL cert/config directories now use Docker volumes (no bind mounts)
+#   - Indexer: wazuh-certs volume → /etc/wazuh-indexer/certs/
+#   - Dashboard: wazuh-dashboard-config volume → /etc/wazuh-dashboard/ (needs write for keystore)
+#   - Manager: wazuh-manager-certs volume → /etc/ssl/
+#   - Fixes Java SecurityManager AND file permission issues across all components
+#   - One-time setup copies certs into volumes during deployment
 # 1.2.4 (2026-04-10) - Java SecurityManager workaround with Docker volumes
 #   - Changed indexer certs from bind mounts to named volume (wazuh-certs)
 #   - Docker-managed volumes bypass Java SecurityManager file access restrictions
@@ -28,29 +35,6 @@
 #   - Verified by examining container's opensearch.yml configuration
 #   - Dashboard stays at /etc/wazuh-dashboard/certs/ (correct)
 #   - Both components now use correct paths per their internal configs
-# 1.2.2 (2026-04-09) - Indexer certificate path fix (REVERTED)
-#   - Attempted /usr/share/wazuh-indexer/certs/ due to Java SecurityManager
-#   - Failed: opensearch.yml has hardcoded /etc/ paths
-# 1.2.1 (2026-04-09) - Certificate path fixes
-#   - Fixed indexer cert paths: /etc/wazuh-indexer/certs/ (was /usr/share)
-#   - Fixed dashboard cert paths: /etc/wazuh-dashboard/certs/ (was /usr/share)
-#   - Matches official Wazuh container expectations
-# 1.2.0 (2026-04-09) - SSL certificate integration
-#   - Added certificate mounts from local ./certs/ directory
-#   - Certificates generated via generate-certs.yml
-#   - Proper SSL paths for all components
-#   - Fixes crash-loop issues from missing certs
-# 1.1.0 (2026-04-09) - Production-ready deployment
-#   - Removed optional directory mounts (caused failures if files didn't exist)
-#   - All data stored in Docker volumes (7 named volumes)
-#   - Clean deployment - works immediately without file dependencies
-#   - Custom configs can be added later when needed (see notes at bottom)
-# 1.0.0 (2026-04-09) - Initial deployment
-#   - Wazuh 4.x single-node configuration
-#   - Manager on port 1514 (STANDARD agent port - priority over Graylog)
-#   - Dashboard on port 8443 (avoiding standard HTTPS)
-#   - Self-signed certificates for inter-component TLS
-#   - Data persistence via named volumes
 # ============================================================================
 # CRITICAL PRE-DEPLOYMENT:
 # ============================================================================
@@ -167,10 +151,8 @@ services:
       - wazuh-manager-logs:/var/ossec/logs
       - wazuh-manager-etc:/var/ossec/etc
       
-      # SSL certificates (for Filebeat -> Indexer communication)
-      - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
-      - ./certs/wazuh-1.pem:/etc/ssl/filebeat.pem:ro
-      - ./certs/wazuh-1-key.pem:/etc/ssl/filebeat-key.pem:ro
+      # SSL certificates (using named volume to bypass permission issues)
+      - wazuh-manager-certs:/etc/ssl:ro
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -206,10 +188,8 @@ services:
     
     # ── Volume Mounts ───────────────────────────────────────────────────────
     volumes:
-      # SSL certificates (dashboard expects them in /etc/wazuh-dashboard/certs/)
-      - ./certs/dashboard.pem:/etc/wazuh-dashboard/certs/dashboard.pem:ro
-      - ./certs/dashboard-key.pem:/etc/wazuh-dashboard/certs/dashboard-key.pem:ro
-      - ./certs/root-ca.pem:/etc/wazuh-dashboard/certs/root-ca.pem:ro
+      # Dashboard config directory (needs write access for keystore creation)
+      - wazuh-dashboard-config:/etc/wazuh-dashboard
     
     # ── Dependencies ────────────────────────────────────────────────────────
     depends_on:
@@ -247,9 +227,13 @@ volumes:
   wazuh-manager-etc:
     driver: local
   
-  # SSL certificates (named volume bypasses Java SecurityManager restrictions)
+  # SSL certificates and config (named volumes bypass Java SecurityManager)
   wazuh-certs:
     external: true  # Created manually: docker volume create wazuh-certs
+  wazuh-dashboard-config:
+    external: true  # Created manually: docker volume create wazuh-dashboard-config
+  wazuh-manager-certs:
+    external: true  # Created manually: docker volume create wazuh-manager-certs
 
 # ══════════════════════════════════════════════════════════════════════════
 # Networks
