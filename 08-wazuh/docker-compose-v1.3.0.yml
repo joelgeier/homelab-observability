@@ -1,0 +1,217 @@
+# ============================================================================
+# Wazuh Stack - Docker Compose Configuration
+# ============================================================================
+# Project:       homelab-observability
+# Component:     08-wazuh (Security Monitoring & SIEM)
+# Version:       1.3.0
+# Description:   Single-node Wazuh deployment with Indexer, Manager, Dashboard
+# Documentation: See README.md for deployment guide
+#
+# CRITICAL FIX: Mounts certificates to /usr/share paths (not /etc) and
+#               overrides opensearch.yml to avoid Java SecurityManager blocks
+#
+# Changelog:
+#   v1.3.0 (2026-04-11) - WORKING VERSION
+#     - Mount certs to /usr/share/wazuh-indexer/certs/ (not /etc/)
+#     - Mount custom opensearch.yml to override cert paths
+#     - Use direct bind mounts (not volumes) per official pattern
+#     - Certificate filenames: wazuh.indexer.pem, wazuh.indexer.key
+#   v1.2.5 (2026-04-10) - Docker volumes approach (failed - security policy)
+#   v1.2.1 (2026-04-09) - Fixed cert paths to /etc/ (failed - security policy)
+#   v1.0.0 (2026-04-09) - Initial version
+# ============================================================================
+
+version: '3.8'
+
+# ── Networks ─────────────────────────────────────────────────────────────
+networks:
+  observability:
+    external: true
+
+# ── Services ─────────────────────────────────────────────────────────────
+
+services:
+  # ── Wazuh Indexer (OpenSearch - Data Storage) ─────────────────────────
+  wazuh-indexer:
+    image: wazuh/wazuh-indexer:4.11.2
+    container_name: wazuh-indexer
+    hostname: wazuh-indexer
+    restart: always
+    
+    # ── Port Mapping ─────────────────────────────────────────────────────
+    ports:
+      - "9200:9200"  # OpenSearch API (internal only, not exposed externally)
+    
+    # ── Environment ──────────────────────────────────────────────────────
+    environment:
+      - OPENSEARCH_JAVA_OPTS=-Xms${INDEXER_HEAP:-2g} -Xmx${INDEXER_HEAP:-2g}
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - network.host=0.0.0.0
+    
+    # ── Resource Limits ──────────────────────────────────────────────────
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    
+    # ── Volumes ──────────────────────────────────────────────────────────
+    # CRITICAL: Certificates MUST be in /usr/share/wazuh-indexer/certs/
+    #           NOT /etc/wazuh-indexer/certs/ (blocked by Java SecurityManager)
+    volumes:
+      # Data persistence
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      
+      # SSL certificates (bind mounts to /usr/share - works with Java security)
+      - ./certs/wazuh.indexer.pem:/usr/share/wazuh-indexer/certs/wazuh.indexer.pem:ro
+      - ./certs/wazuh.indexer.key:/usr/share/wazuh-indexer/certs/wazuh.indexer.key:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-indexer/certs/root-ca.pem:ro
+      - ./certs/admin.pem:/usr/share/wazuh-indexer/certs/admin.pem:ro
+      - ./certs/admin-key.pem:/usr/share/wazuh-indexer/certs/admin-key.pem:ro
+      
+      # CRITICAL: Override opensearch.yml to point to /usr/share cert paths
+      - ./config/opensearch.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+    
+    networks:
+      - observability
+
+  # ── Wazuh Manager (Security Engine) ────────────────────────────────────
+  wazuh-manager:
+    image: wazuh/wazuh-manager:4.11.2
+    container_name: wazuh-manager
+    hostname: wazuh-manager
+    restart: always
+    
+    # ── Port Mapping ─────────────────────────────────────────────────────
+    ports:
+      - "1514:1514"    # Agent enrollment (TCP)
+      - "55000:55000"  # API for registration/management
+    
+    # ── Environment ──────────────────────────────────────────────────────
+    environment:
+      - INDEXER_URL=https://wazuh-indexer:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD:-SecretPassword}
+      - FILEBEAT_SSL_VERIFICATION_MODE=full
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat.key
+    
+    # ── Volumes ──────────────────────────────────────────────────────────
+    volumes:
+      # Data persistence
+      - wazuh-manager-data:/var/ossec/data
+      - wazuh-manager-logs:/var/ossec/logs
+      - wazuh-manager-etc:/var/ossec/etc
+      
+      # Filebeat SSL certificates (manager uses /etc/ssl path)
+      - ./certs/root-ca.pem:/etc/ssl/root-ca.pem:ro
+      - ./certs/wazuh.manager.pem:/etc/ssl/filebeat.pem:ro
+      - ./certs/wazuh.manager.key:/etc/ssl/filebeat.key:ro
+    
+    # ── Dependencies ─────────────────────────────────────────────────────
+    depends_on:
+      - wazuh-indexer
+    
+    networks:
+      - observability
+
+  # ── Wazuh Dashboard (Web UI) ───────────────────────────────────────────
+  wazuh-dashboard:
+    image: wazuh/wazuh-dashboard:4.11.2
+    container_name: wazuh-dashboard
+    hostname: wazuh-dashboard
+    restart: always
+    
+    # ── Port Mapping ─────────────────────────────────────────────────────
+    ports:
+      - "8443:5601"  # HTTPS Web UI (remapped to avoid port 443 conflict)
+    
+    # ── Environment ──────────────────────────────────────────────────────
+    environment:
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=${INDEXER_PASSWORD:-SecretPassword}
+      - WAZUH_API_URL=https://wazuh-manager
+      - DASHBOARD_USERNAME=kibanaserver
+      - DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD:-kibanaserver}
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=${API_PASSWORD:-MyS3cr37P450r.*-}
+    
+    # ── Volumes ──────────────────────────────────────────────────────────
+    volumes:
+      # Configuration persistence
+      - wazuh-dashboard-config:/usr/share/wazuh-dashboard/data/wazuh/config
+      
+      # SSL certificates (dashboard uses /usr/share path)
+      - ./certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/certs/wazuh-dashboard.pem:ro
+      - ./certs/wazuh.dashboard.key:/usr/share/wazuh-dashboard/certs/wazuh-dashboard-key.pem:ro
+      - ./certs/root-ca.pem:/usr/share/wazuh-dashboard/certs/root-ca.pem:ro
+    
+    # ── Health Check ─────────────────────────────────────────────────────
+    healthcheck:
+      test: ["CMD-SHELL", "curl -k https://localhost:5601/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    
+    # ── Dependencies ─────────────────────────────────────────────────────
+    depends_on:
+      - wazuh-indexer
+      - wazuh-manager
+    
+    networks:
+      - observability
+
+# ── Named Volumes ────────────────────────────────────────────────────────
+volumes:
+  wazuh-indexer-data:
+    name: wazuh-indexer-data
+  wazuh-manager-data:
+    name: wazuh-manager-data
+  wazuh-manager-logs:
+    name: wazuh-manager-logs
+  wazuh-manager-etc:
+    name: wazuh-manager-etc
+  wazuh-dashboard-config:
+    name: wazuh-dashboard-config
+
+# ============================================================================
+# DEPLOYMENT INSTRUCTIONS
+# ============================================================================
+#
+# Prerequisites:
+# 1. Kernel parameter (CRITICAL):
+#    echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+#    sudo sysctl -p
+#
+# 2. Docker network:
+#    bash ../scripts/06-create-networks.sh
+#
+# 3. Certificates (with correct filenames):
+#    docker compose -f generate-certs.yml run --rm generator
+#    cd certs && cp node-1.pem wazuh.indexer.pem
+#    cd certs && cp node-1-key.pem wazuh.indexer.key
+#    cd certs && cp wazuh-1.pem wazuh.manager.pem
+#    cd certs && cp wazuh-1-key.pem wazuh.manager.key
+#
+# 4. Config file:
+#    mkdir -p config
+#    cp official-opensearch.yml config/opensearch.yml
+#
+# Deployment:
+#    docker compose up -d
+#
+# Verification:
+#    docker compose ps
+#    docker compose logs -f wazuh-dashboard
+#
+# Access:
+#    https://labhost00.taild6529.ts.net:8443
+#    Username: admin
+#    Password: SecretPassword
+#
+# ============================================================================
