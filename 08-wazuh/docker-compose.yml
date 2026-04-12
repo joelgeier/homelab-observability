@@ -28,6 +28,7 @@ networks:
     external: true
 
 # ── Services ─────────────────────────────────────────────────────────────
+services:
 
  # ── Wazuh Manager (Security Engine) ────────────────────────────────────
   wazuh-manager:
@@ -92,8 +93,6 @@ networks:
     networks:
       - observability
 
-
-services:
   # ── Wazuh Indexer (OpenSearch - Data Storage) ─────────────────────────
   wazuh-indexer:
     image: wazuh/wazuh-indexer:4.14.4
