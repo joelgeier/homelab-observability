@@ -195,6 +195,7 @@ services:
 
     # Mount only the certs directory, not individual files
       - ./config/wazuh_dashboard/certs:/usr/share/wazuh-dashboard/config/certs:ro
+      - ./config/wazuh_dashboard/opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml
       - wazuh-dashboard-custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
     
       # Config volume FIRST (so it gets populated with defaults)
