@@ -1,15 +1,37 @@
+# ============================================================================
+# Wazuh Certificate Configuration
+# ============================================================================
+# This file defines the nodes for certificate generation
+# DNS names MUST match docker-compose service names for proper SSL validation
+# ============================================================================
+
 nodes:
   # Wazuh indexer nodes
   indexer:
     - name: node-1
-      ip: 127.0.0.1
+      ip: 
+        - 127.0.0.1
+      dns:
+        - wazuh-indexer      # Docker service name (CRITICAL)
+        - wazuh.indexer      # Alternative format
+        - node-1             # Certificate filename compatibility
   
   # Wazuh server nodes
   server:
     - name: wazuh-1
-      ip: 127.0.0.1
+      ip:
+        - 127.0.0.1
+      dns:
+        - wazuh-manager      # Docker service name (CRITICAL)
+        - wazuh.manager      # Alternative format
+        - wazuh-1            # Certificate filename compatibility
   
   # Wazuh dashboard nodes
   dashboard:
     - name: dashboard
-      ip: 127.0.0.1
+      ip:
+        - 127.0.0.1
+      dns:
+        - wazuh-dashboard    # Docker service name (CRITICAL)
+        - wazuh.dashboard    # Alternative format
+        - dashboard          # Certificate filename compatibility
