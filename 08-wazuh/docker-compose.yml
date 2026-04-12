@@ -225,8 +225,6 @@ volumes:
   wazuh-indexer-data:
     name: wazuh-indexer-data
   
-  # Dashboard volumes (2)
-  wazuh-dashboard-config:
-    name: wazuh-dashboard-config
+  # Dashboard volumes (1)
   wazuh-dashboard-custom:
     name: wazuh-dashboard-custom
