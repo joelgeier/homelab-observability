@@ -32,7 +32,7 @@ networks:
 services:
   # ── Wazuh Indexer (OpenSearch - Data Storage) ─────────────────────────
   wazuh-indexer:
-    image: wazuh/wazuh-indexer:5.0.0
+    image: wazuh/wazuh-indexer:4.14.4
     container_name: wazuh-indexer
     hostname: wazuh.indexer
     restart: always
@@ -87,7 +87,7 @@ services:
 
   # ── Wazuh Manager (Security Engine) ────────────────────────────────────
   wazuh-manager:
-    image: wazuh/wazuh-manager:5.0.0
+    image: wazuh/wazuh-manager:4.14.4
     container_name: wazuh-manager
     hostname: wazuh.manager
     restart: always
@@ -150,7 +150,7 @@ services:
 
   # ── Wazuh Dashboard (Web UI) ───────────────────────────────────────────
   wazuh-dashboard:
-    image: wazuh/wazuh-dashboard:5.0.0
+    image: wazuh/wazuh-dashboard:4.14.4
     container_name: wazuh-dashboard
     hostname: wazuh.dashboard
     restart: always
