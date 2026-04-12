@@ -20,8 +20,6 @@
 #   v1.0.0 (2026-04-09) - Initial version (4.11.2 - incompatible)
 # ============================================================================
 
-version: '3.8'
-
 # ── Networks ─────────────────────────────────────────────────────────────
 networks:
   observability:
@@ -100,7 +98,6 @@ services:
       - observability
 
   # ── Wazuh Indexer (OpenSearch - Data Storage) ─────────────────────────
-
   wazuh-indexer:
     image: wazuh/wazuh-indexer:4.14.6
     container_name: wazuh.indexer
