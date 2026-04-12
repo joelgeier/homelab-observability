@@ -12,7 +12,7 @@
 #   - Fixed certificate paths to match official deployment
 #   - Using proper environment variables (WAZUH_INDEXER_HOSTS vs INDEXER_URL)
 #   - All 8 volumes following official naming
-#
+# 
 # Changelog:
 #   v1.4.0 (2026-04-12) - Wazuh 5.0.0, official paths, proper cert compatibility
 #   v1.3.2 (2026-04-12) - Hostname alignment (wazuh.indexer vs wazuh-indexer)
