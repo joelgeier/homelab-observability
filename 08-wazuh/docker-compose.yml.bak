@@ -1,0 +1,361 @@
+# ============================================================================
+# Wazuh - Security Information and Event Management (SIEM) Platform
+# ============================================================================
+# Version:       1.2.5
+# Last Updated:  2026-04-10
+# Purpose:       Enterprise-grade security monitoring for homelab
+# Dashboard:     https://labhost00.taild6529.ts.net:8443
+# Data Location: Docker volumes (no bind mounts for certs)
+# Dependencies:  
+#   - vm.max_map_count=262144 (critical - set before deployment)
+#   - SSL certificates (run generate-certs.yml first)
+#   - Three cert volumes created manually (see deployment steps)
+# Documentation: https://documentation.wazuh.com/current/docker/wazuh-container.html
+# ============================================================================
+# Architecture:
+#   - Wazuh Manager: Analyzes security events, manages agents (port 1514)
+#   - Wazuh Indexer: Stores/indexes alerts (OpenSearch fork, port 9200)
+#   - Wazuh Dashboard: Web UI for monitoring (port 8443)
+# ============================================================================
+# Changelog:
+# 1.2.5 (2026-04-10) - Comprehensive volume fix for ALL components
+#   - ALL cert/config directories now use Docker volumes (no bind mounts)
+#   - Indexer: wazuh-certs volume → /etc/wazuh-indexer/certs/
+#   - Dashboard: wazuh-dashboard-config volume → /etc/wazuh-dashboard/ (needs write for keystore)
+#   - Manager: wazuh-manager-certs volume → /etc/ssl/
+#   - Fixes Java SecurityManager AND file permission issues across all components
+#   - One-time setup copies certs into volumes during deployment
+# 1.2.4 (2026-04-10) - Java SecurityManager workaround with Docker volumes
+#   - Changed indexer certs from bind mounts to named volume (wazuh-certs)
+#   - Docker-managed volumes bypass Java SecurityManager file access restrictions
+#   - Certificates copied into volume during setup, not bind-mounted from host
+#   - Fixes "access denied FilePermission" errors despite correct ownership
+# 1.2.3 (2026-04-09) - Indexer certificate path FINAL fix
+#   - Indexer certs BACK to /etc/wazuh-indexer/certs/ (opensearch.yml hardcoded)
+#   - Verified by examining container's opensearch.yml configuration
+#   - Dashboard stays at /etc/wazuh-dashboard/certs/ (correct)
+#   - Both components now use correct paths per their internal configs
+# ============================================================================
+# CRITICAL PRE-DEPLOYMENT:
+# ============================================================================
+# STEP 1: Set vm.max_map_count on Docker host
+#
+# On labhost00:
+#   echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+#   sudo sysctl -p
+#
+# Verify:
+#   sysctl vm.max_map_count
+#   # Should output: vm.max_map_count = 262144
+#
+# Why: Wazuh Indexer (OpenSearch) requires high virtual memory areas.
+#      Default Linux limit (65530) will cause Indexer to fail at startup.
+#
+# ============================================================================
+# STEP 2: Generate SSL/TLS Certificates
+#
+# In this directory (08-wazuh):
+#   docker-compose -f generate-certs.yml run --rm generator
+#
+# This creates certificates in ./certs/ directory:
+#   - root-ca.pem (Certificate Authority)
+#   - wazuh-indexer.pem, wazuh-indexer-key.pem
+#   - wazuh-manager.pem, wazuh-manager-key.pem
+#   - wazuh-dashboard.pem, wazuh-dashboard-key.pem
+#   - admin.pem, admin-key.pem
+#
+# Why: Wazuh components require SSL certificates for secure communication.
+#      Without these, containers will crash-loop with certificate errors.
+# ============================================================================
+
+version: '3.8'
+
+services:
+  # ══════════════════════════════════════════════════════════════════════════
+  # Wazuh Indexer - Data Storage & Search Engine
+  # ══════════════════════════════════════════════════════════════════════════
+  wazuh-indexer:
+    # ── Image Configuration ─────────────────────────────────────────────────
+    image: wazuh/wazuh-indexer:4.11.2
+    container_name: wazuh-indexer
+    restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
+    # Internal use only - Manager and Dashboard connect to 9200
+    # No external exposure needed
+    ports:
+      - "9200:9200"
+    
+    # ── Environment Variables ───────────────────────────────────────────────
+    environment:
+      - TZ=${TZ:-UTC}
+      - "OPENSEARCH_JAVA_OPTS=-Xms2g -Xmx2g"  # Heap size (adjust based on RAM)
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      - plugins.security.ssl.http.enabled=true
+      - plugins.security.ssl.transport.enabled=true
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
+    volumes:
+      # Persistent data storage (alerts, events, indices)
+      - wazuh-indexer-data:/var/lib/wazuh-indexer
+      
+      # SSL certificates - using named volume to bypass Java SecurityManager restrictions
+      - wazuh-certs:/etc/wazuh-indexer/certs:ro
+    
+    # ── Resource Limits ─────────────────────────────────────────────────────
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    
+    # ── Network Configuration ───────────────────────────────────────────────
+    networks:
+      - observability
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Wazuh Manager - Security Event Analysis Engine
+  # ══════════════════════════════════════════════════════════════════════════
+  wazuh-manager:
+    # ── Image Configuration ─────────────────────────────────────────────────
+    image: wazuh/wazuh-manager:4.11.2
+    container_name: wazuh-manager
+    restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
+    ports:
+      - "1514:1514"  # Agent communication (STANDARD Wazuh agent port)
+      - "55000:55000"  # API & Agent registration
+    
+    # ── Environment Variables ───────────────────────────────────────────────
+    environment:
+      - TZ=${TZ:-UTC}
+      - INDEXER_URL=https://wazuh-indexer:9200
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=SecretPassword  # TODO: Change after deployment!
+      - FILEBEAT_SSL_VERIFICATION_MODE=none
+      - SSL_CERTIFICATE_AUTHORITIES=/etc/ssl/root-ca.pem
+      - SSL_CERTIFICATE=/etc/ssl/filebeat.pem
+      - SSL_KEY=/etc/ssl/filebeat-key.pem
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr37P450r.*-  # TODO: Change after deployment!
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
+    volumes:
+      # Persistent manager data (rules, decoders, agent keys)
+      - wazuh-manager-data:/var/ossec/data
+      - wazuh-manager-logs:/var/ossec/logs
+      - wazuh-manager-etc:/var/ossec/etc
+      
+      # SSL certificates (using named volume to bypass permission issues)
+      - wazuh-manager-certs:/etc/ssl:ro
+    
+    # ── Dependencies ────────────────────────────────────────────────────────
+    depends_on:
+      - wazuh-indexer
+    
+    # ── Network Configuration ───────────────────────────────────────────────
+    networks:
+      - observability
+
+  # ══════════════════════════════════════════════════════════════════════════
+  # Wazuh Dashboard - Web User Interface
+  # ══════════════════════════════════════════════════════════════════════════
+  wazuh-dashboard:
+    # ── Image Configuration ─────────────────────────────────────────────────
+    image: wazuh/wazuh-dashboard:4.11.2
+    container_name: wazuh-dashboard
+    restart: unless-stopped
+    
+    # ── Port Mapping ────────────────────────────────────────────────────────
+    ports:
+      - "8443:5601"  # HTTPS dashboard (remapped to avoid port 443 conflict)
+    
+    # ── Environment Variables ───────────────────────────────────────────────
+    environment:
+      - TZ=${TZ:-UTC}
+      - INDEXER_USERNAME=admin
+      - INDEXER_PASSWORD=SecretPassword  # TODO: Change after deployment!
+      - WAZUH_API_URL=https://wazuh-manager
+      - API_USERNAME=wazuh-wui
+      - API_PASSWORD=MyS3cr37P450r.*-  # TODO: Change after deployment!
+      - DASHBOARD_USERNAME=kibanaserver
+      - DASHBOARD_PASSWORD=kibanaserver  # TODO: Change after deployment!
+    
+    # ── Volume Mounts ───────────────────────────────────────────────────────
+    volumes:
+      # Dashboard config directory (needs write access for keystore creation)
+      - wazuh-dashboard-config:/etc/wazuh-dashboard
+    
+    # ── Dependencies ────────────────────────────────────────────────────────
+    depends_on:
+      - wazuh-indexer
+      - wazuh-manager
+    
+    # ── Network Configuration ───────────────────────────────────────────────
+    networks:
+      - observability
+    
+    # ── Health Check ────────────────────────────────────────────────────────
+    # Note: Dashboard takes ~1-2 minutes to fully start (wait for Indexer)
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f https://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+# ══════════════════════════════════════════════════════════════════════════
+# Named Volumes - Data Persistence
+# ══════════════════════════════════════════════════════════════════════════
+# Note: SSL certificates are mounted from ./certs/ directory (not volumes)
+# ══════════════════════════════════════════════════════════════════════════
+volumes:
+  # Wazuh Indexer volumes
+  wazuh-indexer-data:
+    driver: local
+  
+  # Wazuh Manager volumes
+  wazuh-manager-data:
+    driver: local
+  wazuh-manager-logs:
+    driver: local
+  wazuh-manager-etc:
+    driver: local
+  
+  # SSL certificates and config (named volumes bypass Java SecurityManager)
+  wazuh-certs:
+    external: true  # Created manually: docker volume create wazuh-certs
+  wazuh-dashboard-config:
+    external: true  # Created manually: docker volume create wazuh-dashboard-config
+  wazuh-manager-certs:
+    external: true  # Created manually: docker volume create wazuh-manager-certs
+
+# ══════════════════════════════════════════════════════════════════════════
+# Networks
+# ══════════════════════════════════════════════════════════════════════════
+networks:
+  observability:
+    external: true
+    # Created by: scripts/06-create-networks.sh
+    # Run that script first to create the shared observability network
+
+# ══════════════════════════════════════════════════════════════════════════
+# Deployment Instructions
+# ══════════════════════════════════════════════════════════════════════════
+# 1. CRITICAL: Set vm.max_map_count on labhost00
+#    echo "vm.max_map_count=262144" | sudo tee -a /etc/sysctl.conf
+#    sudo sysctl -p
+#
+# 2. CRITICAL: Generate SSL certificates
+#    cd ~/homelab-observability/08-wazuh
+#    docker-compose -f generate-certs.yml run --rm generator
+#    # Creates certificates in ./certs/ directory
+#
+# 3. Create observability network (if not already created)
+#    cd ~/homelab-observability
+#    bash scripts/06-create-networks.sh
+#
+# 4. Deploy Wazuh stack
+#    cd ~/homelab-observability/08-wazuh
+#    docker-compose up -d
+#
+# 5. Monitor startup (~1-2 minutes)
+#    docker-compose logs -f wazuh-dashboard
+#    # Wait for: "Server running at https://0.0.0.0:5601"
+#
+# 6. Access dashboard
+#    https://labhost00.taild6529.ts.net:8443
+#    Username: admin
+#    Password: SecretPassword
+#
+# 7. SECURITY: Change default passwords immediately!
+#    See README.md for password change instructions
+#
+# 8. Install agent on labhost01
+#    See README.md "Installing Wazuh Agent" section
+#
+# To update:
+#    docker-compose pull
+#    docker-compose up -d
+#
+# To backup:
+#    docker exec wazuh-manager tar czf /tmp/wazuh-backup.tar.gz /var/ossec/etc
+#    docker cp wazuh-manager:/tmp/wazuh-backup.tar.gz ~/wazuh-backup-$(date +%Y%m%d).tar.gz
+# ══════════════════════════════════════════════════════════════════════════
+# OPTIONAL: ADDING CUSTOM CONFIGURATIONS (Advanced Users)
+# ══════════════════════════════════════════════════════════════════════════
+# If you need to customize Wazuh behavior beyond the dashboard UI, you can
+# add custom configuration files. This requires creating the files first,
+# then adding volume mounts to this compose file.
+#
+# CUSTOM DETECTION RULES:
+# ----------------------
+# 1. Create custom rules file:
+#    docker exec -it wazuh-manager cat /var/ossec/etc/rules/local_rules.xml > local_rules.xml
+# 
+# 2. Edit local_rules.xml with your custom rules
+#
+# 3. Add mount to wazuh-manager volumes:
+#    - ./local_rules.xml:/var/ossec/etc/rules/local_rules.xml:ro
+#
+# 4. Restart manager:
+#    docker-compose restart wazuh-manager
+#
+# CUSTOM DECODERS:
+# ---------------
+# Similar process - extract, edit, mount local_decoder.xml
+#
+# INDEXER CONFIGURATION:
+# ---------------------
+# 1. Extract default config:
+#    docker exec wazuh-indexer cat /usr/share/wazuh-indexer/opensearch.yml > opensearch.yml
+#
+# 2. Customize as needed
+#
+# 3. Add mount to wazuh-indexer volumes:
+#    - ./opensearch.yml:/usr/share/wazuh-indexer/opensearch.yml:ro
+#
+# DASHBOARD CONFIGURATION:
+# -----------------------
+# 1. Extract default:
+#    docker exec wazuh-dashboard cat /usr/share/wazuh-dashboard/config/opensearch_dashboards.yml > opensearch_dashboards.yml
+#
+# 2. Customize
+#
+# 3. Add mount to wazuh-dashboard volumes:
+#    - ./opensearch_dashboards.yml:/usr/share/wazuh-dashboard/config/opensearch_dashboards.yml:ro
+#
+# NOTE: Most customization can be done via the web UI - only use file mounts
+# for advanced configurations not available in the dashboard.
+# ══════════════════════════════════════════════════════════════════════════
+# KNOWN ISSUES & SOLUTIONS
+# ══════════════════════════════════════════════════════════════════════════
+# Issue: Containers crash-loop with "ENOENT: no such file or directory" errors
+#   Cause: SSL certificates not generated before deployment
+#   Solution: Run certificate generator first:
+#     docker-compose -f generate-certs.yml run --rm generator
+#
+# Issue: Indexer fails with "access denied" certificate errors
+#   Cause: Certificate files missing or incorrect permissions
+#   Solution: Regenerate certificates and restart:
+#     rm -rf certs/
+#     docker-compose -f generate-certs.yml run --rm generator
+#     docker-compose down && docker-compose up -d
+#
+# Issue: Dashboard shows "Failed to connect to Wazuh indexer"
+#   Cause: Indexer still starting (takes ~60 seconds)
+#   Solution: Wait 1-2 minutes, refresh browser
+#
+# Issue: "vm_max_map_count too low" error
+#   Cause: Kernel parameter not set
+#   Solution: Run sysctl commands from CRITICAL PRE-DEPLOYMENT section
+#
+# Issue: High memory usage
+#   Cause: Indexer Java heap size too large for your system
+#   Solution: Reduce OPENSEARCH_JAVA_OPTS: -Xms1g -Xmx1g (for 4GB RAM host)
+# ══════════════════════════════════════════════════════════════════════════
