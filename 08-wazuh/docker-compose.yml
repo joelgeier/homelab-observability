@@ -192,15 +192,14 @@ services:
     # ── Volumes ──────────────────────────────────────────────────────────
     # CRITICAL: Certificate paths MUST match official deployment
     volumes:
-      # Configuration persistence - Official volume names
-      #-  wazuh-dashboard-config:/usr/share/wazuh-dashboard/config
+      # Config volume FIRST (so it gets populated with defaults)
+      - wazuh-dashboard-config:/usr/share/wazuh-dashboard/config
       - wazuh-dashboard-custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
-      
-      # SSL certificates - OFFICIAL PATHS
+      # Then certificate files (they override the defaults)
       - ./config/wazuh_dashboard/certs/wazuh.dashboard.pem:/usr/share/wazuh-dashboard/config/certs/dashboard.pem
       - ./config/wazuh_dashboard/certs/wazuh.dashboard-key.pem:/usr/share/wazuh-dashboard/config/certs/dashboard-key.pem
       - ./config/wazuh_dashboard/certs/root-ca.pem:/usr/share/wazuh-dashboard/config/certs/root-ca.pem
-    
+
     networks:
       - observability
 
