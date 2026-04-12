@@ -193,7 +193,7 @@ services:
     # CRITICAL: Certificate paths MUST match official deployment
     volumes:
       # Configuration persistence - Official volume names
-      - wazuh-dashboard-config:/usr/share/wazuh-dashboard/config
+      #-  wazuh-dashboard-config:/usr/share/wazuh-dashboard/config
       - wazuh-dashboard-custom:/usr/share/wazuh-dashboard/plugins/wazuh/public/assets/custom
       
       # SSL certificates - OFFICIAL PATHS
