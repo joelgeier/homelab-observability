@@ -99,4 +99,4 @@ volumes:
   nagios_config:
   nagios_var:
   nagios_plugins:
-  nagios_graph
+  nagios_graph:
