@@ -1,0 +1,167 @@
+# =============================================================================
+# Project: homelab-observability
+# Service: Nagios (Evaluation Stack)
+# File: docker-compose.yml
+# Version: 0.1.0
+#
+# Description:
+#   Baseline Docker Compose stack for deploying Nagios in a homelab environment.
+#   This file is intentionally verbose and modular to support experimentation.
+#
+# -----------------------------------------------------------------------------
+# DESIGN PRINCIPLE: STACK ISOLATION
+#
+# This stack is intentionally self-contained.
+# No external visualization or telemetry systems (e.g. Grafana, Prometheus)
+# are included at this stage.
+#
+# Goal:
+#   - Validate Nagios as a standalone "state engine"
+#   - Reduce complexity during initial deployment and troubleshooting
+#
+# Future Phase:
+#   - Cross-stack integration (Grafana dashboards, alert correlation, etc.)
+# -----------------------------------------------------------------------------
+# Notes:
+#   - Traefik routing is MOVING OUT of this file into:
+#       /traefik/routers/router-labhost00-nagios.yml
+#   - Labels are still shown below (commented) for reference during migration.
+#   - Choose ONE image strategy (lightweight vs full-featured).
+#
+# Changelog:
+#   0.1.0 - Initial research baseline with multiple image options
+# =============================================================================
+
+version: "3.9"
+
+services:
+
+  nagios:
+    # -------------------------------------------------------------------------
+    # IMAGE SELECTION (CHOOSE ONE)
+    # -------------------------------------------------------------------------
+
+    # --- Option A: Feature-rich (recommended starting point) ---
+    image: tronyx/nagios:latest
+
+    # --- Option B: Lightweight Alpine build ---
+    # image: manios/nagios:latest
+
+    # --- Option C: Minimal / DIY (requires full config mount) ---
+    # image: remie/docker-nagios:4.4.3-core
+
+    container_name: nagios
+
+    restart: unless-stopped
+
+    # -------------------------------------------------------------------------
+    # RESOURCE MANAGEMENT (optional but recommended for lab stability)
+    # -------------------------------------------------------------------------
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: "1.0"
+    #       memory: 512M
+    #     reservations:
+    #       cpus: "0.25"
+    #       memory: 128M
+
+    # -------------------------------------------------------------------------
+    # PORTS
+    # NOTE:
+    #   - Not required if using Traefik exclusively
+    #   - Keep commented unless debugging
+    # -------------------------------------------------------------------------
+    # ports:
+    #   - "8080:80"
+
+    # -------------------------------------------------------------------------
+    # VOLUMES (PERSISTENCE + CONFIGURATION)
+    # -------------------------------------------------------------------------
+    volumes:
+      # Core Nagios configuration
+      - ./config:/opt/nagios/etc
+
+      # Runtime data (status, retention, logs)
+      - ./data:/opt/nagios/var
+
+      # Optional: custom plugins
+      # - ./plugins:/opt/nagios/libexec
+
+      # Optional: custom scripts
+      # - ./scripts:/opt/scripts
+
+    # -------------------------------------------------------------------------
+    # ENVIRONMENT VARIABLES
+    # -------------------------------------------------------------------------
+    environment:
+      - TZ=UTC
+
+      # Example: web auth override (depends on image)
+      # - NAGIOSADMIN_USER=nagiosadmin
+      # - NAGIOSADMIN_PASS=changeme
+
+    # -------------------------------------------------------------------------
+    # NETWORKING
+    # -------------------------------------------------------------------------
+    networks:
+      - observability
+
+    # -------------------------------------------------------------------------
+    # TRAEFIK LABELS (LEGACY - MOVING TO FILE PROVIDER)
+    # -------------------------------------------------------------------------
+    # labels:
+    #   - "traefik.enable=true"
+    #
+    #   # Router
+    #   - "traefik.http.routers.nagios.rule=Host(`nagios.lab.local`)"
+    #   - "traefik.http.routers.nagios.entrypoints=websecure"
+    #   - "traefik.http.routers.nagios.tls=true"
+    #
+    #   # Service
+    #   - "traefik.http.services.nagios.loadbalancer.server.port=80"
+    #
+    #   # Optional middleware (auth, headers, etc.)
+    #   - "traefik.http.routers.nagios.middlewares=auth@file"
+
+    # -------------------------------------------------------------------------
+    # HEALTHCHECK (basic HTTP check)
+    # -------------------------------------------------------------------------
+    # healthcheck:
+    #   test: ["CMD", "curl", "-f", "http://localhost"]
+    #   interval: 30s
+    #   timeout: 10s
+    #   retries: 3
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+networks:
+  observability:
+    external: true
+    # This network must already exist and be shared with Traefik
+    # docker network create observability
+
+
+# =============================================================================
+# TRAEFIK FILE PROVIDER EXAMPLE (SEPARATE FILE)
+# =============================================================================
+#
+# File: /traefik/routers/router-labhost00-nagios.yml
+#
+# http:
+#   routers:
+#     nagios:
+#       rule: "Host(`nagios.lab.local`)"
+#       entryPoints:
+#         - websecure
+#       service: nagios
+#       tls: {}
+#
+#   services:
+#     nagios:
+#       loadBalancer:
+#         servers:
+#           - url: "http://nagios:80"
+#
+# =============================================================================
