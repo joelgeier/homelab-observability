@@ -369,5 +369,100 @@ nagios/
 * Implement first use case (HP iLO)
 
 
+## Integration Layer: Reverse Proxy, Control Plane, and Operational Model
+
+This homelab observability stack is not a standalone deployment of Nagios, but part of a broader, modular architecture that separates concerns across multiple systems and hosts.
+
+### Reverse Proxy & Access Layer
+
+All services are exposed through a centralized Traefik reverse proxy running on a separate host.
+
+This provides:
+- Unified HTTPS entry point for all services
+- Dynamic routing via container labels
+- Centralized TLS certificate management
+- Middleware support (authentication, headers, rate limiting)
+
+Each monitoring-related container (including Nagios) must define appropriate routing labels so it can be accessed via the shared domain structure.
+
+---
+
+### Service Dashboard (Homarr)
+
+Homarr acts as the user-facing entry point for the lab environment.
+
+Responsibilities:
+- Provides a clean dashboard for launching services
+- Acts as a single pane of glass for operators
+- Links to Nagios, Portainer, and other observability tools
+
+Nagios does not need to provide a modern UI experience itself, as Homarr fulfills that role.
+
+---
+
+### Container Management (Portainer)
+
+Portainer is used as the primary control plane for managing containers.
+
+Capabilities:
+- Start / stop / restart containers without SSH access
+- Pause or suspend services to conserve lab resources
+- Inspect logs and container state
+- Manage Docker networks and volumes
+
+This is especially important in a lab environment where services are not always running continuously.
+
+---
+
+### Image Strategy and Tradeoffs
+
+The Nagios deployment follows a deliberate tradeoff between convenience and efficiency.
+
+Heavier images (such as tronyx/nagios):
+- Include plugins, graphing, and additional tooling
+- Faster to get started
+- Higher CPU and memory usage
+
+Lightweight images:
+- Minimal Nagios Core with basic plugins
+- Require external tooling for visualization
+- More modular and resource-efficient
+
+This stack favors pragmatism over purity, using heavier images where they reduce setup complexity for lab experimentation.
+
+---
+
+### Network and Service Topology
+
+- All containers join a shared external Docker network used by Traefik
+- Services are not exposed via host ports unless required
+- Internal communication remains container-to-container
+- Traefik is the only externally exposed entry point
+
+This keeps the architecture consistent, controlled, and easier to manage.
+
+---
+
+### Future Direction: AI-Assisted Operations Layer
+
+A planned enhancement to this lab includes an overlay system of agents capable of:
+
+- Interacting with multiple observability tools (Nagios, logs, metrics)
+- Correlating failures across services
+- Performing automated investigation workflows
+- Producing human-readable diagnostic summaries
+
+Nagios serves as a signal source rather than the final intelligence layer.
+
+---
+
+### Operational Philosophy
+
+This homelab is designed with flexibility and modularity in mind:
+
+- Services can be stopped when not in use
+- Components are loosely coupled and replaceable
+- UI/UX is handled outside core monitoring tools
+- Observability is treated as a composable system, not a monolith
 
 
